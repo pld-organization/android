@@ -51,7 +51,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.authservice.SessionManager
 import com.example.sahtek.network.RetrofitClient
-import com.example.sahtek.ui.doctor.analyse.DoctorPatientsPage
+import com.example.sahtek.ui.doctor.DoctorPatientsPage
 import com.example.sahtek.ui.home.repository.RealPatientRepository
 import com.example.sahtek.ui.home.viewmodel.PatientHomeViewModel
 import com.example.sahtek.ui.home.viewmodel.PatientHomeViewModelFactory

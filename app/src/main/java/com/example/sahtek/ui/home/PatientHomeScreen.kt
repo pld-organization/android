@@ -20,10 +20,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Dashboard
-import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.Notifications
@@ -52,6 +52,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.authservice.SessionManager
 import com.example.sahtek.network.RetrofitClient
+import com.example.sahtek.ui.analysis.PatientAnalysisViewModel
+import com.example.sahtek.ui.analysis.PatientAnalysisHomeScreenContent
 import com.example.sahtek.ui.home.repository.RealPatientRepository
 import com.example.sahtek.ui.home.viewmodel.PatientHomeViewModel
 import com.example.sahtek.ui.home.viewmodel.PatientHomeViewModelFactory
@@ -66,7 +68,7 @@ private data class PatientHomeTab(
 private val patientTabs = listOf(
     PatientHomeTab("Overview", Icons.Filled.Dashboard),
     PatientHomeTab("Appointments", Icons.Filled.ContentPaste),
-    PatientHomeTab("Patients", Icons.Filled.Groups),
+    PatientHomeTab("Analysis", Icons.Filled.Analytics),
     PatientHomeTab("Schedule", Icons.Filled.CalendarMonth),
     PatientHomeTab("Consultation", Icons.Filled.MedicalServices)
 )
@@ -74,10 +76,12 @@ private val patientTabs = listOf(
 @Composable
 fun PatientHomeScreen(
     patientName: String = "Sara",
+    analysisViewModel: PatientAnalysisViewModel,
     onNotificationsClick: () -> Unit = {},
     onProfileClick: () -> Unit = {},
     onSearchDoctorsClick: () -> Unit = {},
-    onUploadAnalysisClick: () -> Unit = {},
+    onNavigateToAddAnalysis: () -> Unit = {},
+    onNavigateToDetails: (String) -> Unit = {},
     onAppointmentsClick: () -> Unit = {}
 ) {
     var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
@@ -121,7 +125,7 @@ fun PatientHomeScreen(
                 latestAiResult = uiState.latestAiResult,
                 quickStats = uiState.quickStats,
                 onSearchDoctorsClick = onSearchDoctorsClick,
-                onUploadAnalysisClick = onUploadAnalysisClick,
+                onUploadAnalysisClick = { selectedTabIndex = 2 },
                 onAppointmentsClick = onAppointmentsClick
             )
 
@@ -133,7 +137,13 @@ fun PatientHomeScreen(
                 onAddAppointmentClick = onSearchDoctorsClick
             )
 
-            2 -> PatientPatientsPage(innerPadding = innerPadding)
+            2 -> PatientAnalysisHomeScreenContent(
+                viewModel = analysisViewModel,
+                onNavigateToAddAnalysis = onNavigateToAddAnalysis,
+                onNavigateToDetails = onNavigateToDetails,
+                innerPadding = innerPadding
+            )
+            
             3 -> PatientSchedulePage(innerPadding = innerPadding)
             else -> PatientConsultationPage(
                 innerPadding = innerPadding,

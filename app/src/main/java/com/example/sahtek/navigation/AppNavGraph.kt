@@ -10,6 +10,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 import com.authservice.SessionManager
 import com.example.sahtek.R
 import com.example.sahtek.network.RetrofitClient
@@ -27,11 +29,18 @@ import com.example.sahtek.ui.profile.EditProfileScreen
 import com.example.sahtek.ui.profile.EditProfileViewModel
 import com.example.sahtek.ui.profile.EditProfileViewModelFactory
 import androidx.compose.runtime.collectAsState
+import com.example.sahtek.ui.analysis.PatientAnalysisViewModel
+import com.example.sahtek.ui.analysis.PatientAnalysisHomeScreen
+import com.example.sahtek.ui.analysis.AddPatientAnalysisScreen
+import com.example.sahtek.ui.analysis.PatientAnalysisDetailsScreen
 
 @Composable
 fun AppNavGraph() {
     val navController = rememberNavController()
     var loginRole by rememberSaveable { mutableStateOf("PATIENT") }
+    
+    // Shared ViewModel for Analysis feature to ensure data is updated across screens
+    val analysisViewModel: PatientAnalysisViewModel = viewModel()
 
     NavHost(
         navController = navController,
@@ -116,6 +125,7 @@ fun AppNavGraph() {
 
         composable(Screen.Homepatient.route) {
             PatientHomeScreen(
+                analysisViewModel = analysisViewModel,
                 onNotificationsClick = {
                     // connect later when Notifications page exists
                 },
@@ -125,8 +135,11 @@ fun AppNavGraph() {
                 onSearchDoctorsClick = {
                     navController.navigate(Screen.AvailableSchedules.route)
                 },
-                onUploadAnalysisClick = {
-                    // connect later when Upload Analysis page exists
+                onNavigateToAddAnalysis = {
+                    navController.navigate(Screen.AddPatientAnalysis.route)
+                },
+                onNavigateToDetails = { resultId ->
+                    navController.navigate(Screen.PatientAnalysisDetails.createRoute(resultId))
                 },
                 onAppointmentsClick = {
                     // connect later when My Appointments page exists
@@ -226,6 +239,40 @@ fun AppNavGraph() {
                 onProfileClick = {
                     navController.navigate(Screen.PatientProfile.route)
                 }
+            )
+        }
+
+        // --- Analysis Feature ---
+        composable(Screen.PatientAnalysisHome.route) {
+            PatientAnalysisHomeScreen(
+                viewModel = analysisViewModel,
+                onNavigateToAddAnalysis = {
+                    navController.navigate(Screen.AddPatientAnalysis.route)
+                },
+                onNavigateToDetails = { resultId ->
+                    navController.navigate(Screen.PatientAnalysisDetails.createRoute(resultId))
+                }
+            )
+        }
+
+        composable(Screen.AddPatientAnalysis.route) {
+            AddPatientAnalysisScreen(
+                viewModel = analysisViewModel,
+                onBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable(
+            route = Screen.PatientAnalysisDetails.route,
+            arguments = listOf(navArgument("resultId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val resultId = backStackEntry.arguments?.getString("resultId") ?: ""
+            PatientAnalysisDetailsScreen(
+                resultId = resultId,
+                viewModel = analysisViewModel,
+                onBack = { navController.popBackStack() }
             )
         }
 

@@ -14,5 +14,10 @@ sealed class Screen(val route: String){
 
     object EditProfile: Screen("edit_profile")
 
-
+    // Analysis Feature
+    object PatientAnalysisHome: Screen("patient_analysis_home")
+    object AddPatientAnalysis: Screen("add_patient_analysis")
+    object PatientAnalysisDetails: Screen("patient_analysis_details/{resultId}") {
+        fun createRoute(resultId: String) = "patient_analysis_details/$resultId"
+    }
 }
