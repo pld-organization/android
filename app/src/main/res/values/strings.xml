@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">Sahtek Online</string>
+    <string name="google_web_client_id" translatable="false">99207128929-99i0dv2tilj1sguca6mihblmkc9ijrk4.apps.googleusercontent.com</string>
+    <string name="welcome_to_mediapp">Welcome to Sahtek Online</string>
+    <string name="select_your_role">Select your role to continue</string>
+    <string name="im_a_patient">I\'m a Patient</string>
+    <string name="im_a_doctor">I\'m a Doctor</string>
+    <string name="already_have_account">Already have an account?</string>
+    <string name="log_in">Log In</string>
+</resources>

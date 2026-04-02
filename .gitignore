@@ -1,0 +1,73 @@
+*.iml
+.gradle
+.gradle-home/
+.gradle-project/
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.idea/shelf/
+.idea/assetWizardSettings.xml
+.idea/dictionaries
+.idea/vcs.xml
+.idea/jsLibraryMappings.xml
+.idea/tasks.xml
+.idea/copy.xml
+.idea/indexLayout.xml
+.idea/migration.xml
+.idea/render.xml
+.idea/deploymentTargetSelector.xml
+.idea/AndroidProjectSystem.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+# Android Studio
+*.iws
+# Unit test reports
+tests/test-results/
+# Gradle files
+.gradle/
+build/
+# External native build artifacts
+.cxx/
+# Google Services
+google-services.json
+# Generated files
+bin/
+gen/
+# Log files
+*.log
+# OS files
+.DS_Store
+# User-specific files
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/dictionaries
+.idea/libraries
+.idea/modules.xml
+.idea/navEditor.xml
+.idea/assetWizardSettings.xml
+.idea/shelf/
+.idea/inspectionProfiles/
+# Crashlytics
+com_crashlytics_export_strings.xml
+crashlytics.properties
+crashlytics-build.properties
+fabric.properties
+# Play Services values
+/google-services.json
+# Lint
+lint/
+# APKs
+*.apk
+*.ap_
+# Jars
+*.jar
+# EXCEPT the gradle wrapper
+!gradle/wrapper/gradle-wrapper.jar
