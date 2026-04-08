@@ -6,6 +6,7 @@ package com.example.sahtek.ui.auth
 data class SignupUiState(
     val firstName: String = "",
     val lastName: String = "",
+    val serialNumber: String = "",
     val speciality: String = "",
     val establishment: String = "",
     val bloodType: String = "",

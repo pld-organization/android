@@ -34,6 +34,7 @@ class RealPatientRepository(
                 .ifBlank { "Patient" }
 
             PationHome(
+                id = body.id, // Populating the ID here
                 isLoading = false,
                 patientname = fullName,
                 email = body.email,
@@ -58,7 +59,6 @@ class RealPatientRepository(
             ?: return ProfileResult.Error("No token found")
 
         return try {
-            // Log the request for debugging (remove in production)
             Log.d("API_UPDATE", "Sending request: $request")
             
             val response = apiService.updatePatientProfile("Bearer $token", request)
@@ -73,8 +73,6 @@ class RealPatientRepository(
             } else {
                 val errorJson = response.errorBody()?.string() ?: "Unknown error"
                 Log.e("API_ERROR", "Code: ${response.code()}, Body: $errorJson")
-                
-                // If 404 Patient Not Found, it might be the backend logic failing to find the related record
                 ProfileResult.Error(errorJson)
             }
         } catch (e: Exception) {

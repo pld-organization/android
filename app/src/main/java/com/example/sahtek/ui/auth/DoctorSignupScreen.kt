@@ -138,6 +138,17 @@ fun DoctorSignupScreen(
                 }
 
                 SahtekTextField(
+                    label = "Serial number",
+                    value = uiState.serialNumber,
+                    onValueChange = viewModel::onSerialNumberChange,
+                    placeholder = "MIN-2024-008",
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Characters,
+                        imeAction = ImeAction.Next
+                    )
+                )
+
+                SahtekTextField(
                     label = "Specialty",
                     value = uiState.speciality,
                     onValueChange = viewModel::onSpecialtyChange,

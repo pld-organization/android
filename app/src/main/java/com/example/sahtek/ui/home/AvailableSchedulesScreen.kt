@@ -3,13 +3,11 @@ package com.example.sahtek.ui.home
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.DrawableRes
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,7 +20,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -34,6 +31,7 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -46,6 +44,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -55,17 +54,16 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.authservice.SessionManager
-import com.example.sahtek.R
 import com.example.sahtek.network.RetrofitClient
+import com.example.sahtek.reservation.ReservationViewModel
+import com.example.sahtek.reservation.ReservationViewModelFactory
+import com.example.sahtek.reservation.repository.RealReservationRepository
 import com.example.sahtek.ui.home.repository.RealPatientRepository
 import com.example.sahtek.ui.home.viewmodel.PatientHomeViewModel
 import com.example.sahtek.ui.home.viewmodel.PatientHomeViewModelFactory
@@ -88,21 +86,41 @@ internal fun AvailableSchedulesScreen(
     onProfileClick: () -> Unit = {}
 ) {
     val context = LocalContext.current.applicationContext
-    val repository = remember {
+    val sessionManager = remember { SessionManager(context) }
+    
+    // Patient ViewModel
+    val patientRepository = remember {
         RealPatientRepository(
             apiService = RetrofitClient.patientApiService,
-            sessionManager = SessionManager(context)
+            sessionManager = sessionManager
         )
     }
-    val factory = remember(repository) { PatientHomeViewModelFactory(repository) }
-    val homeViewModel: PatientHomeViewModel = viewModel(factory = factory)
-    val uiState by homeViewModel.uiState.collectAsState()
-    
-    val patientInitial = uiState.patientname.firstOrNull()?.uppercaseChar()?.toString() ?: "P"
+    val patientFactory = remember(patientRepository) { PatientHomeViewModelFactory(patientRepository) }
+    val homeViewModel: PatientHomeViewModel = viewModel(factory = patientFactory)
+    val patientUiState by homeViewModel.uiState.collectAsState()
+
+    // Reservation ViewModel
+    val reservationRepository = remember { RealReservationRepository(RetrofitClient.reservationApiService) }
+    val reservationFactory = remember(reservationRepository) { ReservationViewModelFactory(reservationRepository, sessionManager) }
+    val reservationViewModel: ReservationViewModel = viewModel(factory = reservationFactory)
+    val reservationUiState by reservationViewModel.uiState.collectAsState()
+
+    val patientInitial = patientUiState.patientname.firstOrNull()?.uppercaseChar()?.toString() ?: "P"
 
     val schedules = remember { fakeSchedules() }
-    val savedAppointments = remember { mutableStateListOf<SavedAppointmentUi>() }
     var selectedSchedule by remember { mutableStateOf<AvailableScheduleUi?>(null) }
+
+    // Handle success/error messages
+    LaunchedEffect(reservationUiState.successMessage, reservationUiState.errorMessage) {
+        reservationUiState.successMessage?.let {
+            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+            reservationViewModel.clearMessages()
+        }
+        reservationUiState.errorMessage?.let {
+            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+            reservationViewModel.clearMessages()
+        }
+    }
 
     Scaffold(
         containerColor = Color(0xFFFBFCFF),
@@ -136,6 +154,12 @@ internal fun AvailableSchedulesScreen(
                     )
                 }
             }
+
+            if (reservationUiState.isLoading) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = SahtekBlue)
+                }
+            }
         }
     }
 
@@ -143,15 +167,13 @@ internal fun AvailableSchedulesScreen(
         AppointmentDetailsSheet(
             schedule = schedule,
             onDismiss = { selectedSchedule = null },
-            onConfirm = { fileName, fileUri, description ->
-                savedAppointments.removeAll { saved -> saved.schedule.id == schedule.id }
-                savedAppointments.add(
-                    SavedAppointmentUi(
-                        schedule = schedule,
-                        fileName = fileName,
-                        fileUri = fileUri,
-                        description = description.trim()
-                    )
+            onConfirm = { _, _, description ->
+                reservationViewModel.createReservation(
+                    doctorId = "DOCTOR_ID_HERE", // This should come from your previous screen/navigation
+                    patientId = patientUiState.id,
+                    reservationDate = schedule.day,
+                    reservationTime = schedule.hour,
+                    reason = description
                 )
                 selectedSchedule = null
             }
@@ -385,7 +407,7 @@ private fun AppointmentDetailsSheet(
                             description
                         )
                     },
-                    enabled = selectedFileUri.isNotBlank() && description.isNotBlank(),
+                    enabled = description.isNotBlank(), // Simplified: only description is mandatory for API
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(18.dp),
                     colors = ButtonDefaults.buttonColors(

@@ -6,6 +6,7 @@ data class DoctorSignupRequest(
     val role: String = "DOCTOR",
     val firstName: String,
     val lastName: String,
+    val serialNumber: String,
     val speciality: String,
     val establishment: String
 )

@@ -51,7 +51,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.authservice.SessionManager
 import com.example.sahtek.network.RetrofitClient
-import com.example.sahtek.ui.doctor.DoctorPatientsPage
+import com.example.sahtek.ui.doctor.pation.DoctorPatientsPage
 import com.example.sahtek.ui.home.repository.RealPatientRepository
 import com.example.sahtek.ui.home.viewmodel.PatientHomeViewModel
 import com.example.sahtek.ui.home.viewmodel.PatientHomeViewModelFactory
@@ -130,7 +130,12 @@ fun DoctorHomeScreen(
                 onLoadMoreClick = onLoadMoreClick
             )
 
-            2 -> DoctorPatientsPage(innerPadding = innerPadding)
+            2 -> DoctorPatientsPage(
+                innerPadding = innerPadding,
+                onSearchClick = onSearchClick,
+                onFilterClick = onFilterClick,
+                onLoadMoreClick = onLoadMoreClick
+            )
             3 -> DoctorSchedulePage(innerPadding = innerPadding)
             else -> DoctorConsultationPage(innerPadding = innerPadding)
         }

@@ -35,8 +35,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.sahtek.ui.home.FeatureSummaryCard
-import com.example.sahtek.ui.home.SectionHeader
 import com.example.sahtek.ui.theme.SahtekBlue
 import com.example.sahtek.ui.theme.SahtekTextSecondary
 
@@ -399,40 +397,6 @@ private fun DoctorAppointmentRow(item: DoctorAppointmentModel) {
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                 )
             }
-        }
-    }
-}
-
-@Composable
-internal fun DoctorPatientsPage(innerPadding: PaddingValues) {
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(innerPadding),
-        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
-    ) {
-        item {
-            SectionHeader(
-                title = "Patients",
-                subtitle = "Access current cases, follow-up records, and recent patient activity."
-            )
-        }
-        item {
-            FeatureSummaryCard(
-                title = "High-priority follow-up",
-                subtitle = "Amina Boudjemaa",
-                detail = "Needs post-consultation review and medication adjustment confirmation.",
-                onClick = {}
-            )
-        }
-        item {
-            FeatureSummaryCard(
-                title = "New uploaded file",
-                subtitle = "Nabil Haddad",
-                detail = "A new chest report has been uploaded and is ready for your review.",
-                onClick = {}
-            )
         }
     }
 }

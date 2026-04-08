@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 data class PationHome(
+    val id: String = "",
     val isLoading: Boolean = false,
     val patientname: String = "",
     val email: String = "",

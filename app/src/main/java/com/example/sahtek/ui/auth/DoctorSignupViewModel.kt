@@ -32,6 +32,13 @@ class DoctorSignupViewModel(
         )
     }
 
+    fun onSerialNumberChange(value: String) {
+        _uiState.value = _uiState.value.copy(
+            serialNumber = value,
+            errorMessage = null
+        )
+    }
+
     fun onSpecialtyChange(value: String) {
         _uiState.value = _uiState.value.copy(
             speciality = value,
@@ -63,6 +70,7 @@ class DoctorSignupViewModel(
     fun signup() {
         val firstName = _uiState.value.firstName.trim()
         val lastName = _uiState.value.lastName.trim()
+        val serialNumber = _uiState.value.serialNumber.trim()
         val specialty = _uiState.value.speciality.trim()
         val establishment = _uiState.value.establishment.trim()
         val email = _uiState.value.email.trim()
@@ -75,6 +83,11 @@ class DoctorSignupViewModel(
 
         if (lastName.isEmpty()) {
             _uiState.value = _uiState.value.copy(errorMessage = "Last name is required")
+            return
+        }
+
+        if (serialNumber.isEmpty()) {
+            _uiState.value = _uiState.value.copy(errorMessage = "Serial number is required")
             return
         }
 
@@ -111,6 +124,7 @@ class DoctorSignupViewModel(
                     password = password,
                     firstName = firstName,
                     lastName = lastName,
+                    serialNumber = serialNumber,
                     speciality = specialty,
                     establishment = establishment
                 )
