@@ -3,6 +3,7 @@ package com.example.sahtek.navigation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
@@ -20,6 +21,7 @@ import com.example.sahtek.ui.auth.LoginScreen
 import com.example.sahtek.ui.auth.PatientSignupScreen
 import com.example.sahtek.ui.auth.RoleSelectionScreen
 import com.example.sahtek.ui.doctor.DoctorHomeScreen
+import com.example.sahtek.ui.doctor.shedul.DoctorSetAvailabilityRoute
 import com.example.sahtek.ui.home.AvailableSchedulesScreen
 import com.example.sahtek.ui.home.PatientHomeScreen
 import com.example.sahtek.ui.home.repository.RealPatientRepository
@@ -33,19 +35,41 @@ import com.example.sahtek.ui.analysis.PatientAnalysisViewModel
 import com.example.sahtek.ui.analysis.PatientAnalysisHomeScreen
 import com.example.sahtek.ui.analysis.AddPatientAnalysisScreen
 import com.example.sahtek.ui.analysis.PatientAnalysisDetailsScreen
+import com.example.sahtek.ui.animationpage.SplashAnimationPage
 
 @Composable
 fun AppNavGraph() {
     val navController = rememberNavController()
     var loginRole by rememberSaveable { mutableStateOf("PATIENT") }
+    val context = LocalContext.current
+    val sessionManager = remember { SessionManager(context) }
     
     // Shared ViewModel for Analysis feature to ensure data is updated across screens
     val analysisViewModel: PatientAnalysisViewModel = viewModel()
 
     NavHost(
         navController = navController,
-        startDestination = Screen.Roleselection.route
+        startDestination = Screen.Splash.route
     ) {
+        composable(Screen.Splash.route) {
+            SplashAnimationPage(
+                onAnimationComplete = {
+                    if (sessionManager.isLoggedIn()) {
+                        val role = sessionManager.getUserRole() ?: "PATIENT"
+                        loginRole = role.uppercase()
+                        val destination = if (loginRole == "DOCTOR") Screen.Homedoctor.route else Screen.Homepatient.route
+                        navController.navigate(destination) {
+                            popUpTo(Screen.Splash.route) { inclusive = true }
+                        }
+                    } else {
+                        navController.navigate(Screen.Roleselection.route) {
+                            popUpTo(Screen.Splash.route) { inclusive = true }
+                        }
+                    }
+                }
+            )
+        }
+
         composable(Screen.Roleselection.route) {
             RoleSelectionScreen(
                 brandHeaderRes = R.drawable.ic_logo,
@@ -133,7 +157,8 @@ fun AppNavGraph() {
                     navController.navigate(Screen.PatientProfile.route)
                 },
                 onSearchDoctorsClick = {
-                    navController.navigate(Screen.AvailableSchedules.route)
+                    // Navigate to a search page or default list
+                    navController.navigate(Screen.AvailableSchedules.createRoute("all"))
                 },
                 onNavigateToAddAnalysis = {
                     navController.navigate(Screen.AddPatientAnalysis.route)
@@ -143,6 +168,9 @@ fun AppNavGraph() {
                 },
                 onAppointmentsClick = {
                     // connect later when My Appointments page exists
+                },
+                onDoctorClick = { doctorId ->
+                    navController.navigate(Screen.AvailableSchedules.createRoute(doctorId))
                 }
             )
         }
@@ -163,6 +191,9 @@ fun AppNavGraph() {
                 },
                 onLoadMoreClick = {
                     // connect later when pagination exists
+                },
+                onSetAvailabilityClick = {
+                    navController.navigate(Screen.DoctorSetAvailability.route)
                 }
             )
         }
@@ -204,10 +235,10 @@ fun AppNavGraph() {
         }
 
         composable(Screen.EditProfile.route){
-            val context = LocalContext.current.applicationContext
             val repository = RealPatientRepository(
                 apiService = RetrofitClient.patientApiService,
-                sessionManager = SessionManager(context)
+                reservationApiService = RetrofitClient.reservationApiService,
+                sessionManager = sessionManager
             )
             val viewModel: EditProfileViewModel = viewModel(
                 factory = EditProfileViewModelFactory(repository)
@@ -228,8 +259,13 @@ fun AppNavGraph() {
             )
         }
 
-        composable(Screen.AvailableSchedules.route) {
+        composable(
+            route = Screen.AvailableSchedules.route,
+            arguments = listOf(navArgument("doctorId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val doctorId = backStackEntry.arguments?.getString("doctorId") ?: ""
             AvailableSchedulesScreen(
+                doctorId = doctorId,
                 onBackClick = {
                     navController.popBackStack()
                 },
@@ -238,6 +274,14 @@ fun AppNavGraph() {
                 },
                 onProfileClick = {
                     navController.navigate(Screen.PatientProfile.route)
+                }
+            )
+        }
+
+        composable(Screen.DoctorSetAvailability.route) {
+            DoctorSetAvailabilityRoute(
+                onBackClick = {
+                    navController.popBackStack()
                 }
             )
         }

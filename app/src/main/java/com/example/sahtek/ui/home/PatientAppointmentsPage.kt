@@ -31,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,9 +43,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.authservice.SessionManager
+import com.example.sahtek.data.doctor.model.DoctorDto
+import com.example.sahtek.data.doctor.repository.DoctorRepositoryImpl
+import com.example.sahtek.ui.appointment.DoctorUiState
+import com.example.sahtek.ui.appointment.DoctorViewModel
+import com.example.sahtek.ui.appointment.DoctorViewModelFactory
 import com.example.sahtek.ui.home.viewmodel.AppointmentUi
 import com.example.sahtek.ui.theme.SahtekBlue
 import com.example.sahtek.ui.theme.SahtekBlueDark
@@ -52,6 +61,7 @@ import com.example.sahtek.ui.theme.SahtekBlueLight
 import com.example.sahtek.ui.theme.SahtekBorder
 
 private data class DoctorAvailabilityUi(
+    val id: String,
     val name: String,
     val speciality: String,
     val accent: Color
@@ -63,10 +73,21 @@ internal fun PatientAppointmentsPage(
     isLoading: Boolean,
     errorMessage: String?,
     nextAppointment: AppointmentUi?,
-    onAddAppointmentClick: () -> Unit
+    onAddAppointmentClick: () -> Unit,
+    onDoctorClick: (String) -> Unit
 ) {
     var searchQuery by rememberSaveable { mutableStateOf("") }
-    val doctors = remember(nextAppointment) { buildDoctorAvailabilityList(nextAppointment) }
+    val context = LocalContext.current.applicationContext
+    val doctorRepository = remember { DoctorRepositoryImpl(SessionManager(context)) }
+    val doctorFactory = remember(doctorRepository) { DoctorViewModelFactory(doctorRepository) }
+    val doctorViewModel: DoctorViewModel = viewModel(factory = doctorFactory)
+    val doctorUiState by doctorViewModel.uiState.collectAsState()
+
+    val doctors = remember(doctorUiState) {
+        buildDoctorAvailabilityList(
+            doctors = (doctorUiState as? DoctorUiState.Success)?.doctors.orEmpty()
+        )
+    }
     val filteredDoctors = remember(doctors, searchQuery) {
         if (searchQuery.isBlank()) {
             doctors
@@ -77,6 +98,8 @@ internal fun PatientAppointmentsPage(
             }
         }
     }
+    val isDoctorLoading = doctorUiState is DoctorUiState.Loading
+    val doctorErrorMessage = (doctorUiState as? DoctorUiState.Error)?.message
 
     Box(
         modifier = Modifier
@@ -116,7 +139,7 @@ internal fun PatientAppointmentsPage(
                 )
             }
 
-            if (isLoading) {
+            if (isDoctorLoading) {
                 item {
                     DashboardStatusCard(
                         title = "Loading doctors",
@@ -125,30 +148,34 @@ internal fun PatientAppointmentsPage(
                 }
             }
 
-            errorMessage?.let { message ->
+            doctorErrorMessage?.let { message ->
                 item {
                     DashboardStatusCard(
-                        title = "Could not refresh appointments",
+                        title = "Could not load doctors",
                         message = message
                     )
                 }
             }
 
-            if (filteredDoctors.isEmpty()) {
+            if (!isDoctorLoading && doctorErrorMessage == null && filteredDoctors.isEmpty()) {
                 item {
                     DashboardStatusCard(
-                        title = "No doctor found",
-                        message = "Try another doctor name or specialty."
+                        title = if (searchQuery.isBlank()) "No doctors available" else "No doctor found",
+                        message = if (searchQuery.isBlank()) {
+                            "Doctors will appear here when the backend returns data."
+                        } else {
+                            "Try another doctor name or specialty."
+                        }
                     )
                 }
-            } else {
+            } else if (!isDoctorLoading && doctorErrorMessage == null) {
                 items(
                     items = filteredDoctors,
-                    key = { doctor -> "${doctor.name}-" }
+                    key = { doctor -> doctor.id }
                 ) { doctor ->
                     DoctorAvailabilityCard(
                         doctor = doctor,
-                        onAddAppointmentClick = onAddAppointmentClick
+                        onAddAppointmentClick = { onDoctorClick(doctor.id) }
                     )
                 }
             }
@@ -373,47 +400,28 @@ private fun ConsultationModeChip(
     }
 }
 
-private fun buildDoctorAvailabilityList(nextAppointment: AppointmentUi?): List<DoctorAvailabilityUi> {
-    val liveAppointmentCard = nextAppointment?.let {
-        DoctorAvailabilityUi(
-            name = it.doctortName.ifBlank { "Dahmani Mohamed" },
-            speciality = normalizeSpeciality(it.doctorSpeciality),
-            accent = SahtekBlueDark
-        )
-    }
-
-    val fallbackDoctors = listOf(
-        DoctorAvailabilityUi(
-            name = "Dahmani Mohamed",
-            speciality = "General medicine",
-            accent = Color(0xFF173D7A)
-        ),
-        DoctorAvailabilityUi(
-            name = "Nadia Benali",
-            speciality = "Cardiology",
-            accent = Color(0xFF3B5BA9)
-        ),
-        DoctorAvailabilityUi(
-            name = "Sofiane Merah",
-            speciality = "Dermatology",
-            accent = Color(0xFF4C79C9)
-        ),
-        DoctorAvailabilityUi(
-            name = "Lina Cheriet",
-            speciality = "Pediatrics",
-            accent = Color(0xFF5D91E4)
-        )
-    )
-
-    return buildList {
-        liveAppointmentCard?.let { add(it) }
-        fallbackDoctors.forEach { fallback ->
-            val alreadyAdded = any { existing -> existing.name.equals(fallback.name, ignoreCase = true) }
-            if (!alreadyAdded) {
-                add(fallback)
-            }
+private fun buildDoctorAvailabilityList(doctors: List<DoctorDto>): List<DoctorAvailabilityUi> =
+    doctors
+        .filter { it.id.isNotBlank() }
+        .distinctBy { it.id }
+        .map { doctor ->
+            DoctorAvailabilityUi(
+                id = doctor.id,
+                name = doctor.fullName,
+                speciality = normalizeSpeciality(doctor.speciality.orEmpty()),
+                accent = accentForDoctor(doctor.id)
+            )
         }
-    }
+        .sortedBy { it.name.lowercase() }
+
+private fun accentForDoctor(id: String): Color {
+    val palette = listOf(
+        Color(0xFF173D7A),
+        Color(0xFF3B5BA9),
+        Color(0xFF4C79C9),
+        SahtekBlueDark
+    )
+    return palette[(id.hashCode() and Int.MAX_VALUE) % palette.size]
 }
 
 private fun normalizeSpeciality(value: String): String {

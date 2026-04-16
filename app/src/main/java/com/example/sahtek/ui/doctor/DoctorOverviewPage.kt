@@ -21,6 +21,9 @@ internal fun DoctorOverviewPage(
     doctorName: String,
     speciality: String,
     establishment: String,
+    todaysVisits: Int,
+    upcomingVisits: Int,
+    pendingReviews: Int,
     onSearchClick: () -> Unit,
     onFilterClick: () -> Unit,
     onLoadMoreClick: () -> Unit
@@ -46,14 +49,14 @@ internal fun DoctorOverviewPage(
                 CompactInfoCard(
                     modifier = Modifier.weight(1f),
                     title = "Today's Visits",
-                    value = "08",
-                    supporting = "5 upcoming"
+                    value = todaysVisits.toString().padStart(2, '0'),
+                    supporting = "$upcomingVisits upcoming"
                 )
                 CompactInfoCard(
                     modifier = Modifier.weight(1f),
                     title = "Pending Reviews",
-                    value = "03",
-                    supporting = "2 urgent"
+                    value = pendingReviews.toString().padStart(2, '0'),
+                    supporting = "Requires attention"
                 )
             }
         }
@@ -67,14 +70,18 @@ internal fun DoctorOverviewPage(
                 onSecondaryClick = onFilterClick
             )
         }
-        item {
-            FeatureSummaryCard(
-                title = "Morning consultation block",
-                subtitle = "4 patients confirmed",
-                detail = "Your next visit starts at 08:00. Keep consultation notes and imaging review ready.",
-                onClick = onLoadMoreClick
-            )
+        
+        if (upcomingVisits > 0) {
+            item {
+                FeatureSummaryCard(
+                    title = "Upcoming consultations",
+                    subtitle = "$upcomingVisits patients confirmed",
+                    detail = "Review patient files and imaging results before their scheduled time.",
+                    onClick = onLoadMoreClick
+                )
+            }
         }
+
         item {
             FeatureSummaryCard(
                 title = "Clinical reminder",

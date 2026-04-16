@@ -76,6 +76,7 @@ fun PatientProfileRoute(
     val repository = remember {
         RealPatientRepository(
             apiService = RetrofitClient.patientApiService,
+            reservationApiService = RetrofitClient.reservationApiService,
             sessionManager = SessionManager(context)
         )
     }
@@ -124,6 +125,7 @@ fun DoctorProfileRoute(
     val repository = remember {
         RealPatientRepository(
             apiService = RetrofitClient.patientApiService,
+            reservationApiService = RetrofitClient.reservationApiService,
             sessionManager = SessionManager(context)
         )
     }
@@ -494,6 +496,7 @@ private fun ProfileInfoRow(
                 tint = SahtekBlueDark
             )
         }
+        
 
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(

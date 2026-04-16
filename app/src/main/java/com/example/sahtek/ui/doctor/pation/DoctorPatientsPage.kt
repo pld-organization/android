@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -32,16 +33,21 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.authservice.SessionManager
+import com.example.sahtek.network.RetrofitClient
 import com.example.sahtek.ui.theme.SahtekBlue
 import com.example.sahtek.ui.theme.SahtekBlueDark
 import com.example.sahtek.ui.theme.SahtekBlueLight
@@ -58,13 +64,25 @@ private data class PatientChipColors(
 
 @Composable
 internal fun DoctorPatientsPage(
+    doctorId: String,
     innerPadding: PaddingValues,
     onSearchClick: () -> Unit,
     onFilterClick: () -> Unit,
-    onLoadMoreClick: () -> Unit,
-    viewModel: DoctorPationViewModel = viewModel()
+    onLoadMoreClick: () -> Unit
 ) {
+    val context = LocalContext.current.applicationContext
+    val sessionManager = remember { SessionManager(context) }
+    val viewModel: DoctorPationViewModel = viewModel(
+        factory = DoctorPationViewModelFactory(
+            RetrofitClient.reservationApiService,
+            sessionManager
+        )
+    )
     val uiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(doctorId) {
+        viewModel.loadPatients(doctorId)
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -90,7 +108,13 @@ internal fun DoctorPatientsPage(
             }
         }
 
-        if (uiState.filteredPatients.isEmpty()) {
+        if (uiState.isLoading) {
+            item {
+                Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = SahtekBlue)
+                }
+            }
+        } else if (uiState.filteredPatients.isEmpty()) {
             item {
                 PatientEmptyState(searchQuery = uiState.searchQuery)
             }
@@ -111,7 +135,7 @@ internal fun DoctorPatientsPage(
                 contentAlignment = Alignment.Center
             ) {
                 Button(
-                    onClick = onLoadMoreClick,
+                    onClick = { viewModel.loadPatients(doctorId) },
                     modifier = Modifier.width(170.dp),
                     shape = RoundedCornerShape(20.dp),
                     colors = ButtonDefaults.buttonColors(
@@ -121,7 +145,7 @@ internal fun DoctorPatientsPage(
                     elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp)
                 ) {
                     Text(
-                        text = "Load More",
+                        text = "Refresh",
                         fontWeight = FontWeight.SemiBold
                     )
                 }
@@ -226,7 +250,7 @@ private fun PatientEmptyState(searchQuery: String) {
                 color = SahtekTextPrimary
             )
             Text(
-                text = "No patient matches \"$searchQuery\".",
+                text = if (searchQuery.isBlank()) "You have no patients yet." else "No patient matches \"$searchQuery\".",
                 style = MaterialTheme.typography.bodyMedium,
                 color = SahtekTextSecondary
             )
@@ -256,8 +280,7 @@ private fun DoctorPatientCard(item: DoctorPatientUi) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+                verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = item.date,
                     style = MaterialTheme.typography.bodySmall,

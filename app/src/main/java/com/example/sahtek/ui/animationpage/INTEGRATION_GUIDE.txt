@@ -1,0 +1,191 @@
+/**
+ * SAHTEK SPLASH ANIMATION INTEGRATION GUIDE
+ * ==========================================
+ * 
+ * File: SplashAnimationPage.kt
+ * Package: com.example.sahtek.ui.animationpage
+ * 
+ * ============================================
+ * ANIMATION SEQUENCE (Total: ~3.5 seconds)
+ * ============================================
+ * 
+ * Phase 1: Logo Entry (0ms - 800ms)
+ * - Smooth fade-in of "S" logo
+ * - Gentle scale-up animation
+ * - Professional entrance effect
+ * 
+ * Phase 2: Heartbeat Animation (800ms - 2600ms)
+ * - ECG line draws across the logo
+ * - Natural heartbeat rhythm with 1-2 beats
+ * - Soft blue color (#64B5F6)
+ * - Realistic medical feel
+ * 
+ * Phase 3: Glow Effect (2600ms - 3200ms)
+ * - Soft glow surrounds the "S" logo
+ * - Pulsing aura effect
+ * - Professional polish
+ * 
+ * Phase 4: Complete & Transition (3200ms+)
+ * - Animation complete
+ * - Smooth handoff to authentication screen
+ * 
+ * ============================================
+ * DESIGN SPECIFICATIONS
+ * ============================================
+ * 
+ * Colors:
+ * - Primary Logo: #1E88E5 (Healthcare Blue)
+ * - ECG Line: #64B5F6 (Soft Medical Blue)
+ * - Background: #FAFBFC (Professional White)
+ * - Glow Accent: #42A5F5 (Light Blue)
+ * 
+ * Logo:
+ * - Shape: Stylized Capital "S"
+ * - Style: Modern, clean, elegant
+ * - Curves: Smooth Bezier curves
+ * - Size: 240dp (responsive scaling)
+ * - Stroke: 14dp (rounded, professional)
+ * 
+ * Effects:
+ * - Shadows: Soft shadows with subtle elevation
+ * - Glow: Expanding circular glow pulse
+ * - ECG: Realistic heartbeat waveform
+ * - Motion: Easing animations (not linear)
+ * 
+ * ============================================
+ * QUICK INTEGRATION
+ * ============================================
+ * 
+ * 1. UPDATE Screen.kt:
+ *    Add new splash screen route:
+ * 
+ *    sealed class Screen(val route: String) {
+ *        object Splash: Screen("splash")
+ *        object Roleselection: Screen("role_selection")
+ *        // ... other screens
+ *    }
+ * 
+ * 2. UPDATE AppNavGraph.kt:
+ *    First, add import:
+ * 
+ *    import com.example.sahtek.ui.animationpage.SplashAnimationPage
+ * 
+ *    Then change startDestination to Splash:
+ * 
+ *    NavHost(
+ *        navController = navController,
+ *        startDestination = Screen.Splash.route  // <-- CHANGED
+ *    ) {
+ *        // Add splash screen composable FIRST:
+ *        composable(Screen.Splash.route) {
+ *            SplashAnimationPage(
+ *                onAnimationComplete = {
+ *                    navController.navigate(Screen.Roleselection.route) {
+ *                        popUpTo(Screen.Splash.route) { inclusive = true }
+ *                        launchSingleTop = true
+ *                    }
+ *                }
+ *            )
+ *        }
+ * 
+ *        // Then add all existing screens:
+ *        composable(Screen.Roleselection.route) {
+ *            RoleSelectionScreen(...)
+ *        }
+ *        // ... rest of navigation
+ *    }
+ * 
+ * ============================================
+ * CUSTOMIZATION
+ * ============================================
+ * 
+ * Change Animation Duration:
+ * - Modify delay() values in LaunchedEffect
+ * - Adjust tween(durationMillis = X)
+ * - Current: ~3.5 seconds total
+ * 
+ * Change Colors:
+ * - primaryBlue = Color(0xFF1E88E5)  // Main S
+ * - softBlue = Color(0xFF64B5F6)    // ECG line
+ * - lightBackground = Color(0xFFFAFBFC)  // Background
+ * - accentGlow = Color(0xFF42A5F5)  // Glow
+ * 
+ * Change Logo Size:
+ * - .size(240.dp) to your preferred size
+ * - Automatically scales all elements
+ * 
+ * Adjust Heartbeat Intensity:
+ * - In drawECGLine(): change amplitude = 15f * scale
+ * - Higher = larger waves
+ * 
+ * Modify Glow Effect:
+ * - Adjust glowAlpha multiplication factors
+ * - Change shadowElevation calculation
+ * - Modify glow circle radius
+ * 
+ * ============================================
+ * TECHNICAL DETAILS
+ * ============================================
+ * 
+ * Animation Framework:
+ * - Uses Compose animation APIs
+ * - Animatable for sequential animations
+ * - Canvas drawing for custom shapes
+ * - Efficient 60fps rendering
+ * 
+ * Performance:
+ * - Lightweight Canvas drawing
+ * - Optimized Bezier curves
+ * - Soft shadows (not too complex)
+ * - No expensive blur or effects
+ * 
+ * Responsive Design:
+ * - Scales to any device size
+ * - Uses dp units for consistency
+ * - Maintains aspect ratio
+ * 
+ * ECG Pattern:
+ * - Realistic medical waveform
+ * - Two natural heartbeats
+ * - Electrical rest periods
+ * - Professional rhythm
+ * 
+ * ============================================
+ * TESTING CHECKLIST
+ * ============================================
+ * 
+ * ✓ Splash screen shows on app launch
+ * ✓ Animation runs smoothly (60fps)
+ * ✓ Logo fades in and scales properly
+ * ✓ ECG line draws with heartbeat rhythm
+ * ✓ Glow effect pulses around logo
+ * ✓ Transitions smoothly to login screen
+ * ✓ Works on different device sizes
+ * ✓ No visual artifacts or stuttering
+ * ✓ Feels calm and professional
+ * 
+ * ============================================
+ * TROUBLESHOOTING
+ * ============================================
+ * 
+ * Animation doesn't show:
+ * - Check startDestination is Screen.Splash.route
+ * - Verify SplashAnimationPage import is correct
+ * - Ensure onAnimationComplete callback navigates properly
+ * 
+ * Logo appears cut off:
+ * - Check device layout constraints
+ * - Increase size(240.dp) if needed
+ * - Verify alignment is Alignment.Center
+ * 
+ * Animation stutter or lag:
+ * - Reduce shadow complexity if needed
+ * - Check device performance
+ * - Verify 60fps target is achievable
+ * 
+ * Colors don't look right:
+ * - Verify hex color codes
+ * - Test on different devices/screens
+ * - Adjust alpha values if needed
+ * 
+ */

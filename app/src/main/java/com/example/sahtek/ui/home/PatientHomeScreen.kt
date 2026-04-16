@@ -34,6 +34,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -82,13 +83,15 @@ fun PatientHomeScreen(
     onSearchDoctorsClick: () -> Unit = {},
     onNavigateToAddAnalysis: () -> Unit = {},
     onNavigateToDetails: (String) -> Unit = {},
-    onAppointmentsClick: () -> Unit = {}
+    onAppointmentsClick: () -> Unit = {},
+    onDoctorClick: (String) -> Unit = {}
 ) {
     var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
     val context = LocalContext.current.applicationContext
     val repository = remember {
         RealPatientRepository(
             apiService = RetrofitClient.patientApiService,
+            reservationApiService = RetrofitClient.reservationApiService,
             sessionManager = SessionManager(context)
         )
     }
@@ -97,6 +100,11 @@ fun PatientHomeScreen(
     val uiState by homeViewModel.uiState.collectAsState()
     val resolvedPatientName = uiState.patientname.ifBlank { patientName }
     val patientInitial = resolvedPatientName.firstOrNull()?.uppercaseChar()?.toString() ?: "S"
+
+    // Refresh data whenever the tab changes to ensure appointments are up to date
+    LaunchedEffect(selectedTabIndex) {
+        homeViewModel.refreshHome()
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -134,7 +142,8 @@ fun PatientHomeScreen(
                 isLoading = uiState.isLoading,
                 errorMessage = uiState.errorMessage,
                 nextAppointment = uiState.nextAppointment,
-                onAddAppointmentClick = onSearchDoctorsClick
+                onAddAppointmentClick = onSearchDoctorsClick,
+                onDoctorClick = onDoctorClick
             )
 
             2 -> PatientAnalysisHomeScreenContent(
@@ -144,7 +153,11 @@ fun PatientHomeScreen(
                 innerPadding = innerPadding
             )
             
-            3 -> PatientSchedulePage(innerPadding = innerPadding)
+            3 -> PatientSchedulePage(
+                innerPadding = innerPadding,
+                appointments = uiState.appointments
+            )
+
             else -> PatientConsultationPage(
                 innerPadding = innerPadding,
                 onSearchDoctorsClick = onSearchDoctorsClick

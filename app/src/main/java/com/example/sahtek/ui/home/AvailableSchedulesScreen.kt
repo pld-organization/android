@@ -47,7 +47,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -72,15 +71,9 @@ import com.example.sahtek.ui.theme.SahtekBlueDark
 import com.example.sahtek.ui.theme.SahtekBlueLight
 import com.example.sahtek.ui.theme.SahtekBorder
 
-private data class SavedAppointmentUi(
-    val schedule: AvailableScheduleUi,
-    val fileName: String,
-    val fileUri: String,
-    val description: String
-)
-
 @Composable
 internal fun AvailableSchedulesScreen(
+    doctorId: String,
     onBackClick: () -> Unit,
     onNotificationsClick: () -> Unit = {},
     onProfileClick: () -> Unit = {}
@@ -92,6 +85,7 @@ internal fun AvailableSchedulesScreen(
     val patientRepository = remember {
         RealPatientRepository(
             apiService = RetrofitClient.patientApiService,
+            reservationApiService = RetrofitClient.reservationApiService,
             sessionManager = sessionManager
         )
     }
@@ -107,8 +101,14 @@ internal fun AvailableSchedulesScreen(
 
     val patientInitial = patientUiState.patientname.firstOrNull()?.uppercaseChar()?.toString() ?: "P"
 
-    val schedules = remember { fakeSchedules() }
     var selectedSchedule by remember { mutableStateOf<AvailableScheduleUi?>(null) }
+
+    // Fetch available slots when screen loads or doctorId changes
+    LaunchedEffect(doctorId) {
+        reservationViewModel.fetchAvailableSlots(doctorId)
+    }
+
+    val schedules = reservationUiState.availableSlots
 
     // Handle success/error messages
     LaunchedEffect(reservationUiState.successMessage, reservationUiState.errorMessage) {
@@ -139,25 +139,48 @@ internal fun AvailableSchedulesScreen(
                 .padding(innerPadding)
                 .background(Color(0xFFFBFCFF))
         ) {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = 18.dp, vertical = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(18.dp)
-            ) {
-                items(
-                    items = schedules,
-                    key = { schedule -> schedule.id }
-                ) { schedule ->
-                    ScheduleCard(
-                        schedule = schedule,
-                        onAddClick = { selectedSchedule = schedule }
-                    )
-                }
-            }
-
             if (reservationUiState.isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = SahtekBlue)
+                }
+            } else if (schedules.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Text(
+                            text = "No Available Schedules",
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "This doctor hasn't created any availability slots yet.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 18.dp, vertical = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(18.dp)
+                ) {
+                    items(
+                        items = schedules,
+                        key = { schedule -> schedule.id }
+                    ) { schedule ->
+                        ScheduleCard(
+                            schedule = schedule,
+                            onAddClick = { selectedSchedule = schedule }
+                        )
+                    }
                 }
             }
         }
@@ -168,11 +191,16 @@ internal fun AvailableSchedulesScreen(
             schedule = schedule,
             onDismiss = { selectedSchedule = null },
             onConfirm = { _, _, description ->
+                val targetDoctorId = if (doctorId != "all") doctorId else "79ca2c53-efc4-459a-93f6-2cb2675bc169"
+
+                val day = "MONDAY"
+                val time = "09:00"
+                
                 reservationViewModel.createReservation(
-                    doctorId = "DOCTOR_ID_HERE", // This should come from your previous screen/navigation
+                    doctorId = targetDoctorId,
                     patientId = patientUiState.id,
-                    reservationDate = schedule.day,
-                    reservationTime = schedule.hour,
+                    reservationDay = day,
+                    reservationTime = time,
                     reason = description
                 )
                 selectedSchedule = null
@@ -407,7 +435,7 @@ private fun AppointmentDetailsSheet(
                             description
                         )
                     },
-                    enabled = description.isNotBlank(), // Simplified: only description is mandatory for API
+                    enabled = description.isNotBlank(),
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(18.dp),
                     colors = ButtonDefaults.buttonColors(
@@ -442,36 +470,3 @@ private fun resolveFileName(context: Context, uri: Uri): String {
 
     return uri.lastPathSegment ?: "Selected file"
 }
-
-private fun fakeSchedules(): List<AvailableScheduleUi> = listOf(
-    AvailableScheduleUi(
-        id = "schedule_1",
-        day = "12/04/2026",
-        hour = "12:10 PM to 12:40 PM"
-    ),
-    AvailableScheduleUi(
-        id = "schedule_2",
-        day = "13/04/2026",
-        hour = "09:00 AM to 09:30 AM"
-    ),
-    AvailableScheduleUi(
-        id = "schedule_3",
-        day = "13/04/2026",
-        hour = "11:20 AM to 11:50 AM"
-    ),
-    AvailableScheduleUi(
-        id = "schedule_4",
-        day = "14/04/2026",
-        hour = "02:00 PM to 02:30 PM"
-    ),
-    AvailableScheduleUi(
-        id = "schedule_5",
-        day = "15/04/2026",
-        hour = "08:40 AM to 09:10 AM"
-    ),
-    AvailableScheduleUi(
-        id = "schedule_6",
-        day = "16/04/2026",
-        hour = "04:15 PM to 04:45 PM"
-    )
-)

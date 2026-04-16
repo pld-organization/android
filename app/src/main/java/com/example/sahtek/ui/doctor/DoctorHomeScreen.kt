@@ -32,9 +32,11 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -51,6 +53,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.authservice.SessionManager
 import com.example.sahtek.network.RetrofitClient
+import com.example.sahtek.reservation.ReservationResponseDto
 import com.example.sahtek.ui.doctor.pation.DoctorPatientsPage
 import com.example.sahtek.ui.home.repository.RealPatientRepository
 import com.example.sahtek.ui.home.viewmodel.PatientHomeViewModel
@@ -79,14 +82,17 @@ fun DoctorHomeScreen(
     onProfileClick: () -> Unit = {},
     onSearchClick: () -> Unit = {},
     onFilterClick: () -> Unit = {},
-    onLoadMoreClick: () -> Unit = {}
+    onLoadMoreClick: () -> Unit = {},
+    onSetAvailabilityClick: () -> Unit = {}
 ) {
     var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
     val context = LocalContext.current.applicationContext
+    val sessionManager = remember { SessionManager(context) }
     val repository = remember {
         RealPatientRepository(
             apiService = RetrofitClient.patientApiService,
-            sessionManager = SessionManager(context)
+            reservationApiService = RetrofitClient.reservationApiService,
+            sessionManager = sessionManager
         )
     }
     val factory = remember(repository) { PatientHomeViewModelFactory(repository) }
@@ -95,6 +101,20 @@ fun DoctorHomeScreen(
     val resolvedDoctorName = uiState.patientname.ifBlank { doctorName }
     val resolvedSpeciality = uiState.speciality.ifBlank { "General practice" }
     val resolvedEstablishment = uiState.establishment.ifBlank { "Healthcare center" }
+
+    val appointments = remember { mutableStateListOf<ReservationResponseDto>() }
+    LaunchedEffect(uiState.id) {
+        if (uiState.id.isNotBlank()) {
+            val token = sessionManager.getAuthToken() ?: ""
+            try {
+                val response = RetrofitClient.reservationApiService.getDoctorReservations("Bearer $token", uiState.id)
+                if (response.isSuccessful) {
+                    appointments.clear()
+                    appointments.addAll(response.body() ?: emptyList())
+                }
+            } catch (e: Exception) { }
+        }
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -118,12 +138,16 @@ fun DoctorHomeScreen(
                 doctorName = resolvedDoctorName,
                 speciality = resolvedSpeciality,
                 establishment = resolvedEstablishment,
+                todaysVisits = appointments.size,
+                upcomingVisits = appointments.count { it.reservationStatus == "PENDING" },
+                pendingReviews = appointments.count { it.reservationStatus == "PENDING" },
                 onSearchClick = onSearchClick,
                 onFilterClick = onFilterClick,
                 onLoadMoreClick = onLoadMoreClick
             )
 
             1 -> DoctorAppointmentsPage(
+                doctorId = uiState.id,
                 innerPadding = innerPadding,
                 onSearchClick = onSearchClick,
                 onFilterClick = onFilterClick,
@@ -131,12 +155,17 @@ fun DoctorHomeScreen(
             )
 
             2 -> DoctorPatientsPage(
+                doctorId = uiState.id,
                 innerPadding = innerPadding,
                 onSearchClick = onSearchClick,
                 onFilterClick = onFilterClick,
                 onLoadMoreClick = onLoadMoreClick
             )
-            3 -> DoctorSchedulePage(innerPadding = innerPadding)
+            3 -> DoctorSchedulePage(
+                doctorId = uiState.id,
+                innerPadding = innerPadding,
+                onSetAvailabilityClick = onSetAvailabilityClick
+            )
             else -> DoctorConsultationPage(innerPadding = innerPadding)
         }
     }

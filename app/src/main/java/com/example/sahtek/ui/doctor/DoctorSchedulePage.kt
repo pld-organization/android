@@ -39,15 +39,21 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.authservice.SessionManager
+import com.example.sahtek.network.RetrofitClient
+import com.example.sahtek.reservation.ReservationResponseDto
 import com.example.sahtek.ui.theme.SahtekTextPrimary
 import com.example.sahtek.ui.theme.SahtekTextSecondary
 import java.time.LocalDate
@@ -56,35 +62,33 @@ import java.util.Locale
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-internal fun DoctorSchedulePage(innerPadding: PaddingValues) {
-    var currentDate by remember { mutableStateOf(LocalDate.of(2026, 4, 20)) }
+internal fun DoctorSchedulePage(
+    doctorId: String,
+    innerPadding: PaddingValues,
+    onSetAvailabilityClick: () -> Unit = {}
+) {
+    val context = LocalContext.current.applicationContext
+    val sessionManager = remember { SessionManager(context) }
+    var currentDate by remember { mutableStateOf(LocalDate.now()) }
     var direction by remember { mutableStateOf(1) } // 1 for right, -1 for left
     
-    // Simulating different data for different dates
-    val allAppointmentsData = remember {
-        mutableStateOf(
-            mapOf(
-                LocalDate.of(2026, 4, 20) to listOf(
-                    AppointmentData("1", "08:00", "Zarifi abdelhadi", "IRL"),
-                    AppointmentData("2", "10:00", "cheikhaoui ahmed", "IRL"),
-                    AppointmentData("3", "12:00", "cheikhaoui ahmed", "IRL"),
-                    AppointmentData("4", "13:00", "cheikhaoui ahmed", "IRL"),
-                    AppointmentData("5", "15:00", "cheikhaoui ahmed", "IRL")
-                ),
-                LocalDate.of(2026, 4, 21) to listOf(
-                    AppointmentData("6", "09:00", "Benali Karim", "Remote"),
-                    AppointmentData("7", "11:30", "Mansouri Sarah", "IRL"),
-                    AppointmentData("8", "14:00", "Lamine Amine", "IRL")
-                ),
-                LocalDate.of(2026, 4, 19) to listOf(
-                    AppointmentData("9", "08:30", "Haddad Nabil", "IRL"),
-                    AppointmentData("10", "16:00", "Saidani Omar", "Remote")
-                )
-            )
-        )
+    val allAppointments = remember { mutableStateListOf<ReservationResponseDto>() }
+
+    LaunchedEffect(doctorId) {
+        if (doctorId.isNotBlank()) {
+            val token = sessionManager.getAuthToken() ?: ""
+            try {
+                val response = RetrofitClient.reservationApiService.getDoctorReservations("Bearer $token", doctorId)
+                if (response.isSuccessful) {
+                    allAppointments.clear()
+                    allAppointments.addAll(response.body() ?: emptyList())
+                }
+            } catch (e: Exception) { }
+        }
     }
 
     val dateFormatter = DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy", Locale.ENGLISH)
+    val apiDateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
     Column(
         modifier = Modifier
@@ -121,7 +125,7 @@ internal fun DoctorSchedulePage(innerPadding: PaddingValues) {
             }
 
             Button(
-                onClick = { /* TODO */ },
+                onClick = onSetAvailabilityClick,
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF60A5FA)),
                 shape = RoundedCornerShape(14.dp),
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp),
@@ -176,9 +180,9 @@ internal fun DoctorSchedulePage(innerPadding: PaddingValues) {
                             )
                         }
                         
-                        val appointmentsCount = allAppointmentsData.value[currentDate]?.size ?: 0
+                        val filteredCount = allAppointments.count { it.reservationDay == currentDate.format(apiDateFormatter) || it.reservationDay.uppercase() == currentDate.dayOfWeek.name }
                         Text(
-                            text = "$appointmentsCount appointments this day",
+                            text = "$filteredCount appointments this day",
                             style = MaterialTheme.typography.bodySmall,
                             color = SahtekTextSecondary
                         )
@@ -226,7 +230,9 @@ internal fun DoctorSchedulePage(innerPadding: PaddingValues) {
                     },
                     modifier = Modifier.weight(1f), label = ""
                 ) { targetDate ->
-                    val appointments = allAppointmentsData.value[targetDate] ?: emptyList()
+                    val dateStr = targetDate.format(apiDateFormatter)
+                    val dayName = targetDate.dayOfWeek.name
+                    val appointments = allAppointments.filter { it.reservationDay == dateStr || it.reservationDay.uppercase() == dayName }
                     
                     if (appointments.isEmpty()) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -241,10 +247,7 @@ internal fun DoctorSchedulePage(innerPadding: PaddingValues) {
                                 AppointmentItem(
                                     data = appointment,
                                     onDelete = { 
-                                        val newList = appointments.filter { it.id != appointment.id }
-                                        allAppointmentsData.value = allAppointmentsData.value.toMutableMap().apply {
-                                            this[targetDate] = newList
-                                        }
+                                        allAppointments.remove(appointment)
                                     }
                                 )
                             }
@@ -256,10 +259,8 @@ internal fun DoctorSchedulePage(innerPadding: PaddingValues) {
     }
 }
 
-private data class AppointmentData(val id: String, val time: String, val name: String, val type: String)
-
 @Composable
-private fun AppointmentItem(data: AppointmentData, onDelete: () -> Unit) {
+private fun AppointmentItem(data: ReservationResponseDto, onDelete: () -> Unit) {
     var isVisible by remember { mutableStateOf(true) }
 
     AnimatedVisibility(
@@ -271,7 +272,7 @@ private fun AppointmentItem(data: AppointmentData, onDelete: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = data.time,
+                text = data.reservationTime.take(5),
                 modifier = Modifier.width(65.dp),
                 fontWeight = FontWeight.Bold,
                 style = MaterialTheme.typography.titleMedium,
@@ -290,13 +291,13 @@ private fun AppointmentItem(data: AppointmentData, onDelete: () -> Unit) {
                 ) {
                     Column {
                         Text(
-                            text = data.name,
+                            text = "Patient ${data.patientId.takeLast(4)}",
                             fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.bodyMedium,
                             color = SahtekTextPrimary
                         )
                         Text(
-                            text = data.type,
+                            text = data.reason,
                             style = MaterialTheme.typography.labelSmall,
                             color = SahtekTextSecondary.copy(alpha = 0.7f),
                             fontWeight = FontWeight.Bold
@@ -315,8 +316,6 @@ private fun AppointmentItem(data: AppointmentData, onDelete: () -> Unit) {
                         IconButton(
                             onClick = { 
                                 isVisible = false
-                                // We delay the actual deletion to let the animation finish
-                                // In a real app, you'd handle this more robustly
                                 onDelete() 
                             }, 
                             modifier = Modifier.size(24.dp)

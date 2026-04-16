@@ -33,7 +33,7 @@ import androidx.compose.ui.unit.dp
 import com.example.sahtek.ui.theme.SahtekBlueDark
 import com.example.sahtek.ui.theme.SahtekBorder
 
-internal data class AvailableScheduleUi(
+data class AvailableScheduleUi(
     val id: String,
     val day: String,
     val hour: String

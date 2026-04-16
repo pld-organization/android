@@ -21,16 +21,19 @@ data class PationHome(
     val establishment: String = "",
     val unreadnotification: Int = 0,
     val nextAppointment: AppointmentUi? = null,
+    val appointments: List<AppointmentUi> = emptyList(),
     val latestAiResult: AiResultUi? = null,
     val quickStats: HomeQuickStats = HomeQuickStats(),
     val errorMessage: String? = null
 )
 
 data class AppointmentUi(
+    val id: String = "",
     val doctortName: String,
     val doctorSpeciality: String,
     val date: String,
     val time: String,
+    val status: String = "PENDING"
 )
 
 data class AiResultUi(
@@ -56,7 +59,7 @@ class PatientHomeViewModel(
         loadHomeData()
     }
 
-    private fun loadHomeData() {
+    fun loadHomeData() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(
                 isLoading = true,
@@ -66,7 +69,7 @@ class PatientHomeViewModel(
             try {
                 _uiState.value = repository.getPatientHome()
             } catch (e: Exception) {
-                _uiState.value = PationHome(
+                _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     errorMessage = e.message ?: "Error loading patient home"
                 )

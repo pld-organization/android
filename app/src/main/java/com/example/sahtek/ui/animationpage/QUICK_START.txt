@@ -1,0 +1,72 @@
+/**
+ * QUICK START - SPLASH ANIMATION SETUP
+ * Copy & paste these changes into your files
+ */
+
+// ========================================
+// STEP 1: Update Screen.kt
+// ========================================
+// 
+// Add this new object to your Screen sealed class:
+//
+object Splash: Screen("splash")
+//
+// Full example:
+//
+sealed class Screen(val route: String){
+    object Splash: Screen("splash")  // <-- ADD THIS
+    object Roleselection: Screen("role_selection")
+    object Login: Screen("login")
+    object Pationsignup: Screen("patio_signup")
+    object doctor: Screen("doctor_signup")
+    // ... rest of your screens
+}
+//
+
+// ========================================
+// STEP 2: Update AppNavGraph.kt
+// ========================================
+//
+// 1. Add this import at the top:
+//
+import com.example.sahtek.ui.animationpage.SplashAnimationPage
+//
+// 2. Change the startDestination line:
+//    CHANGE FROM: startDestination = Screen.Roleselection.route
+//    CHANGE TO:   startDestination = Screen.Splash.route
+//
+// 3. Add this composable BEFORE all other composables:
+//
+composable(Screen.Splash.route) {
+    SplashAnimationPage(
+        onAnimationComplete = {
+            navController.navigate(Screen.Roleselection.route) {
+                popUpTo(Screen.Splash.route) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+    )
+}
+
+// Your existing composables continue after:
+composable(Screen.Roleselection.route) {
+    RoleSelectionScreen(
+        brandHeaderRes = R.drawable.ic_logo,
+        // ... existing code
+    )
+}
+// ... rest of your navigation
+
+// ========================================
+// THAT'S IT!
+// ========================================
+// 
+// Now when you run the app:
+// 1. Splash animation plays for ~3.5 seconds
+// 2. Elegant "S" logo fades in and scales up
+// 3. ECG heartbeat line draws across the logo
+// 4. Soft glow effect polishes the animation
+// 5. Smooth transition to role selection screen
+//
+// The animation will show every time the app starts!
+//
