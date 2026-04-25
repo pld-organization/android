@@ -6,6 +6,7 @@ import com.example.sahtek.reservation.ReservationResponseDto
 import com.example.sahtek.reservation.ReservationResult
 import com.example.sahtek.reservation.AvailableTimeSlotDto
 import com.example.sahtek.reservation.CreateReservationResponseDto
+import com.example.sahtek.reservation.MeetingDto
 
 class RealReservationRepository(
     private val api: ReservationApiService
@@ -110,4 +111,46 @@ class RealReservationRepository(
             ReservationResult.Error(e.message ?: "Failed to cancel reservation")
         }
     }
+
+    // --- Meeting / Consultation Methods ---
+
+    override suspend fun getPatientMeetings(patientId: String): Result<List<MeetingDto>> {
+        return try {
+            val response = api.getPatientMeetings(patientId)
+            if (response.isSuccessful) {
+                Result.success(response.body() ?: emptyList())
+            } else {
+                Result.failure(Exception("Failed to load meetings: ${response.code()} ${response.message()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception(e.message ?: "Network error while loading meetings"))
+        }
+    }
+
+    override suspend fun getDoctorMeetings(doctorId: String): Result<List<MeetingDto>> {
+        return try {
+            val response = api.getDoctorMeetings(doctorId)
+            if (response.isSuccessful) {
+                Result.success(response.body() ?: emptyList())
+            } else {
+                Result.failure(Exception("Failed to load meetings: ${response.code()} ${response.message()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception(e.message ?: "Network error while loading meetings"))
+        }
+    }
+
+    override suspend fun cancelReservationById(reservationId: String): Result<String> {
+        return try {
+            val response = api.cancelReservation("", reservationId)
+            if (response.isSuccessful) {
+                Result.success(response.body()?.message ?: "Reservation cancelled successfully")
+            } else {
+                Result.failure(Exception("Failed to cancel reservation: ${response.code()} ${response.message()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception(e.message ?: "Network error while cancelling reservation"))
+        }
+    }
 }
+

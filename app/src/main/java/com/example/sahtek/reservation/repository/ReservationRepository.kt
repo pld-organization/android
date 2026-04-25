@@ -4,6 +4,7 @@ import com.example.sahtek.reservation.CreateReservationRequestDto
 import com.example.sahtek.reservation.ReservationResponseDto
 import com.example.sahtek.reservation.ReservationResult
 import com.example.sahtek.reservation.AvailableTimeSlotDto
+import com.example.sahtek.reservation.MeetingDto
 
 interface ReservationRepository {
     suspend fun createReservation(
@@ -30,4 +31,13 @@ interface ReservationRepository {
         token: String,
         reservationId: String
     ): ReservationResult
+
+    // --- Meeting / Consultation Methods ---
+
+    suspend fun getPatientMeetings(patientId: String): Result<List<MeetingDto>>
+
+    suspend fun getDoctorMeetings(doctorId: String): Result<List<MeetingDto>>
+
+    suspend fun cancelReservationById(reservationId: String): Result<String>
 }
+

@@ -1,6 +1,8 @@
 package com.example.sahtek.ui.doctor.shedul
 
+import android.os.Build
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -49,6 +51,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
@@ -69,6 +72,8 @@ import com.example.sahtek.ui.home.repository.RealPatientRepository
 import com.example.sahtek.ui.home.viewmodel.PatientHomeViewModel
 import com.example.sahtek.ui.home.viewmodel.PatientHomeViewModelFactory
 import com.example.sahtek.ui.theme.SahtekBlue
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 import java.util.UUID
 
@@ -90,6 +95,7 @@ class TimeSlot(
 
 class DayAvailability(
     val dayName: String,
+    val dateLabel: String = "",
     isEnabled: Boolean = false,
     slots: SnapshotStateList<TimeSlot> = mutableStateListOf(TimeSlot())
 ) {
@@ -97,6 +103,7 @@ class DayAvailability(
     val slots: SnapshotStateList<TimeSlot> = slots
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun DoctorSetAvailabilityRoute(
     onBackClick: () -> Unit
@@ -148,6 +155,7 @@ fun DoctorSetAvailabilityRoute(
     )
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DoctorSetAvailabilityScreen(
@@ -157,15 +165,17 @@ fun DoctorSetAvailabilityScreen(
     onSaveClick: (List<CreateScheduleRequestDto>) -> Unit
 ) {
     val days = remember {
-        mutableStateListOf(
-            DayAvailability("Sunday"),
-            DayAvailability("Monday"),
-            DayAvailability("Tuesday"),
-            DayAvailability("Wednesday"),
-            DayAvailability("Thursday"),
-            DayAvailability("Friday"),
-            DayAvailability("Saturday")
-        )
+        val today = LocalDate.now()
+        val dateFormatter = DateTimeFormatter.ofPattern("dd MMM", Locale.getDefault())
+        // Start from Sunday of this week, or just the next 7 days?
+        // Let's do the next 7 days for better visualization of "Upcoming availability"
+        List(7) { i ->
+            val date = today.plusDays(i.toLong())
+            DayAvailability(
+                dayName = date.dayOfWeek.name.lowercase().replaceFirstChar { it.uppercase() },
+                dateLabel = date.format(dateFormatter)
+            )
+        }.toMutableStateList()
     }
 
     Scaffold(
@@ -232,24 +242,15 @@ fun DoctorSetAvailabilityScreen(
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = "Each enabled slot will be sent to the reservation service with dayOfWeek, startTime, endTime, and appointmenttype.",
+                            text = "Each enabled slot will be sent to the reservation service. Appointments will be recurring weekly based on the day of week.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = if (doctorId.isBlank()) {
-                                "Loading doctor profile..."
-                            } else {
-                                "Doctor profile loaded."
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (doctorId.isBlank()) Color(0xFFD97706) else Color(0xFF15803D)
                         )
                     }
                 }
             }
 
-            items(days, key = { it.dayName }) { day ->
+            items(days, key = { it.dayName + it.dateLabel }) { day ->
                 DayAvailabilityCard(day = day)
             }
         }
@@ -273,15 +274,28 @@ fun DayAvailabilityCard(day: DayAvailability) {
             modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Switch(
-                    checked = day.isEnabled,
-                    onCheckedChange = { day.isEnabled = it },
-                    modifier = Modifier.scale(0.85f),
-                    colors = SwitchDefaults.colors(checkedThumbColor = SahtekBlue)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Switch(
+                        checked = day.isEnabled,
+                        onCheckedChange = { day.isEnabled = it },
+                        modifier = Modifier.scale(0.85f),
+                        colors = SwitchDefaults.colors(checkedThumbColor = SahtekBlue)
+                    )
+                    Spacer(modifier = Modifier.size(8.dp))
+                    Text(day.dayName, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
+                
+                Text(
+                    text = day.dateLabel,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = SahtekBlue,
+                    fontWeight = FontWeight.SemiBold
                 )
-                Spacer(modifier = Modifier.size(8.dp))
-                Text(day.dayName, fontWeight = FontWeight.Bold, fontSize = 16.sp)
             }
 
             if (day.isEnabled) {

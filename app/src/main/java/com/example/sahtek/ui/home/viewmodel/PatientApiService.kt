@@ -6,6 +6,7 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.PATCH
+import retrofit2.http.Path
 
 interface PatientApiService {
     @GET("/auth/profile")
@@ -19,5 +20,9 @@ interface PatientApiService {
         @Body request: UpdateProfileRequest
     ): Response<UpdateProfileResponse>
 
-
+    @GET("/auth/patient/{patientId}")
+    suspend fun getPatientById(
+        @Header("Authorization") authorization: String,
+        @Path("patientId") patientId: String
+    ): Response<PatientProfileResponse>
 }

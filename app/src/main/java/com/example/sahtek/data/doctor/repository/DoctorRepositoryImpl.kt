@@ -4,6 +4,7 @@ import com.authservice.SessionManager
 import com.example.sahtek.data.doctor.model.DoctorApiService
 import com.example.sahtek.data.doctor.model.DoctorDto
 import com.example.sahtek.data.doctor.model.DoctorResponseParser
+import com.example.sahtek.exception.TokenExpiredException
 import com.example.sahtek.network.RetrofitClient
 
 class DoctorRepositoryImpl(
@@ -21,8 +22,16 @@ class DoctorRepositoryImpl(
                 val doctors = DoctorResponseParser.parseDoctors(response.body())
                 Result.success(resolveDoctorNames(token, doctors))
             } else {
-                Result.failure(Exception("Error ${response.code()}: ${response.message()}"))
+                // Check if token expired (401 Unauthorized)
+                if (response.code() == 401) {
+                    sessionManager.clearSession()
+                    Result.failure(TokenExpiredException())
+                } else {
+                    Result.failure(Exception("Error ${response.code()}: ${response.message()}"))
+                }
             }
+        } catch (e: TokenExpiredException) {
+            Result.failure(e)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -41,9 +50,17 @@ class DoctorRepositoryImpl(
     private suspend fun fetchDoctorDetails(token: String, doctorId: String): DoctorDto? {
         return try {
             val response = apiService.getDoctorById("Bearer $token", doctorId)
-            if (!response.isSuccessful) return null
+            if (!response.isSuccessful) {
+                if (response.code() == 401) {
+                    sessionManager.clearSession()
+                    throw TokenExpiredException()
+                }
+                return null
+            }
 
             DoctorResponseParser.parseDoctor(response.body(), fallbackId = doctorId)
+        } catch (e: TokenExpiredException) {
+            throw e
         } catch (_: Exception) {
             null
         }

@@ -36,7 +36,9 @@ import com.example.sahtek.ui.theme.SahtekBorder
 data class AvailableScheduleUi(
     val id: String,
     val day: String,
-    val hour: String
+    val hour: String,
+    val rawDay: String,
+    val rawStartTime: String
 )
 
 @Composable

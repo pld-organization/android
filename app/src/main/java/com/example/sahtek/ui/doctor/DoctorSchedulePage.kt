@@ -31,6 +31,8 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MedicalServices
+import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -53,12 +55,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.authservice.SessionManager
 import com.example.sahtek.network.RetrofitClient
+import com.example.sahtek.reservation.AvailableTimeSlotDto
 import com.example.sahtek.reservation.ReservationResponseDto
 import com.example.sahtek.ui.theme.SahtekTextPrimary
 import com.example.sahtek.ui.theme.SahtekTextSecondary
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import java.util.UUID
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -73,21 +77,31 @@ internal fun DoctorSchedulePage(
     var direction by remember { mutableStateOf(1) } // 1 for right, -1 for left
     
     val allAppointments = remember { mutableStateListOf<ReservationResponseDto>() }
+    val allSchedules = remember { mutableStateListOf<AvailableTimeSlotDto>() }
 
     LaunchedEffect(doctorId) {
         if (doctorId.isNotBlank()) {
             val token = sessionManager.getAuthToken() ?: ""
+            val authHeader = if (token.startsWith("Bearer ")) token else "Bearer $token"
             try {
-                val response = RetrofitClient.reservationApiService.getDoctorReservations("Bearer $token", doctorId)
-                if (response.isSuccessful) {
+                // Fetch Appointments
+                val resResponse = RetrofitClient.reservationApiService.getDoctorReservations(authHeader, doctorId)
+                if (resResponse.isSuccessful) {
                     allAppointments.clear()
-                    allAppointments.addAll(response.body() ?: emptyList())
+                    allAppointments.addAll(resResponse.body() ?: emptyList())
+                }
+
+                // Fetch Doctor Availability Schedules
+                val availResponse = RetrofitClient.reservationApiService.getAvailableTimeSlots(authHeader, doctorId)
+                if (availResponse.isSuccessful) {
+                    allSchedules.clear()
+                    allSchedules.addAll(availResponse.body() ?: emptyList())
                 }
             } catch (e: Exception) { }
         }
     }
 
-    val dateFormatter = DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy", Locale.ENGLISH)
+    val dateFormatter = DateTimeFormatter.ofPattern("EEEE, dd MMMM", Locale.ENGLISH)
     val apiDateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
     Column(
@@ -117,7 +131,7 @@ internal fun DoctorSchedulePage(
                 modifier = Modifier.padding(vertical = 8.dp)
             ) {
                 Text(
-                    text = "Day",
+                    text = "Daily View",
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
                     fontWeight = FontWeight.Bold,
                     color = SahtekTextPrimary
@@ -180,9 +194,14 @@ internal fun DoctorSchedulePage(
                             )
                         }
                         
-                        val filteredCount = allAppointments.count { it.reservationDay == currentDate.format(apiDateFormatter) || it.reservationDay.uppercase() == currentDate.dayOfWeek.name }
+                        val appointmentsToday = allAppointments.count { 
+                            it.reservationDay == currentDate.format(apiDateFormatter) || 
+                            it.reservationDay?.uppercase() == currentDate.dayOfWeek.name 
+                        }
+                        val slotsToday = allSchedules.count { it.dayOfWeek?.uppercase() == currentDate.dayOfWeek.name }
+                        
                         Text(
-                            text = "$filteredCount appointments this day",
+                            text = "$appointmentsToday bookings • $slotsToday slots",
                             style = MaterialTheme.typography.bodySmall,
                             color = SahtekTextSecondary
                         )
@@ -232,24 +251,41 @@ internal fun DoctorSchedulePage(
                 ) { targetDate ->
                     val dateStr = targetDate.format(apiDateFormatter)
                     val dayName = targetDate.dayOfWeek.name
-                    val appointments = allAppointments.filter { it.reservationDay == dateStr || it.reservationDay.uppercase() == dayName }
                     
-                    if (appointments.isEmpty()) {
+                    val appointments = allAppointments.filter { 
+                        it.reservationDay == dateStr || it.reservationDay?.uppercase() == dayName 
+                    }
+                    val activeSchedules = allSchedules.filter { it.dayOfWeek?.uppercase() == dayName }
+                    
+                    if (appointments.isEmpty() && activeSchedules.isEmpty()) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(text = "No appointments scheduled", color = SahtekTextSecondary)
+                            Text(text = "No availability or bookings", color = SahtekTextSecondary)
                         }
                     } else {
                         LazyColumn(
                             verticalArrangement = Arrangement.spacedBy(16.dp),
                             contentPadding = PaddingValues(bottom = 16.dp)
                         ) {
-                            items(appointments, key = { it.id }) { appointment ->
-                                AppointmentItem(
-                                    data = appointment,
-                                    onDelete = { 
-                                        allAppointments.remove(appointment)
-                                    }
-                                )
+                            if (activeSchedules.isNotEmpty()) {
+                                item {
+                                    Text("My Time Slots", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                                }
+                                items(activeSchedules, key = { it.id ?: UUID.randomUUID().toString() }) { slot ->
+                                    ScheduleSlotItem(slot = slot)
+                                }
+                            }
+
+                            if (appointments.isNotEmpty()) {
+                                item {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text("Patient Bookings", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                                }
+                                items(appointments, key = { it.id ?: UUID.randomUUID().toString() }) { appointment ->
+                                    AppointmentItem(
+                                        data = appointment,
+                                        onDelete = { allAppointments.remove(appointment) }
+                                    )
+                                }
                             }
                         }
                     }
@@ -260,8 +296,102 @@ internal fun DoctorSchedulePage(
 }
 
 @Composable
+private fun ScheduleSlotItem(slot: AvailableTimeSlotDto) {
+    // Get professional appointment type label
+    val appointmentLabel = when (slot.appointmentType?.uppercase()) {
+        "ONLINE" -> "Online Consultation"
+        "IN_PERSON" -> "In-Person Consultation"
+        "VIDEO" -> "Video Consultation"
+        "TELEPHONE" -> "Phone Consultation"
+        else -> slot.appointmentType?.lowercase()?.replaceFirstChar { it.uppercase() } ?: "Consultation"
+    }
+    
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = Color(0xFFF1F5F9),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0))
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = if (slot.appointmentType == "ONLINE") Icons.Default.Videocam else Icons.Default.MedicalServices,
+                    contentDescription = null,
+                    tint = SahtekTextSecondary,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = "${slot.startTime?.take(5) ?: "--:--"} - ${slot.endTime?.take(5) ?: "--:--"}",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = SahtekTextPrimary
+                    )
+                    Text(
+                        text = appointmentLabel,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = SahtekTextSecondary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+            
+            if (slot.isAvailable) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFFDCFCE7)
+                ) {
+                    Text(
+                        "Available",
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFF166534),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun AppointmentItem(data: ReservationResponseDto, onDelete: () -> Unit) {
     var isVisible by remember { mutableStateOf(true) }
+    var patientName by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current.applicationContext
+    val sessionManager = remember(context) { SessionManager(context) }
+
+    LaunchedEffect(data.patientId) {
+        if (data.patientId != null && data.patientId!!.isNotBlank()) {
+            try {
+                val token = sessionManager.getAuthToken() ?: ""
+                
+                if (token.isNotEmpty()) {
+                    val response = RetrofitClient.patientApiService.getPatientById("Bearer $token", data.patientId!!)
+                    if (response.isSuccessful) {
+                        val patientData = response.body()
+                        if (patientData != null) {
+                            val firstName = patientData.firstName?.trim().orEmpty()
+                            val lastName = patientData.lastName?.trim().orEmpty()
+                            
+                            if (firstName.isNotBlank() || lastName.isNotBlank()) {
+                                patientName = listOf(firstName, lastName)
+                                    .filter { it.isNotBlank() }
+                                    .joinToString(" ")
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                // Silent fail, will show Patient Booking as fallback
+            }
+        }
+    }
 
     AnimatedVisibility(
         visible = isVisible,
@@ -272,7 +402,7 @@ private fun AppointmentItem(data: ReservationResponseDto, onDelete: () -> Unit) 
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = data.reservationTime.take(5),
+                text = data.reservationTime?.take(5) ?: "--:--",
                 modifier = Modifier.width(65.dp),
                 fontWeight = FontWeight.Bold,
                 style = MaterialTheme.typography.titleMedium,
@@ -282,25 +412,25 @@ private fun AppointmentItem(data: ReservationResponseDto, onDelete: () -> Unit) 
             Surface(
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(24.dp),
-                color = Color(0xFFBFDBFE) // Light blue background
+                color = Color(0xFFBFDBFE)
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Patient ${data.patientId.takeLast(4)}",
+                            text = patientName ?: "Patient Booking",
                             fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.bodyMedium,
                             color = SahtekTextPrimary
                         )
                         Text(
-                            text = data.reason,
+                            text = data.reason?.takeIf { it.isNotBlank() } ?: "Appointment scheduled",
                             style = MaterialTheme.typography.labelSmall,
                             color = SahtekTextSecondary.copy(alpha = 0.7f),
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {

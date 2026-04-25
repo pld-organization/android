@@ -1,6 +1,10 @@
 package com.example.sahtek.ui.components
 
 import androidx.annotation.DrawableRes
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -32,12 +36,18 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -45,10 +55,15 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.sahtek.ui.animation.AnimationDurations
+import com.example.sahtek.ui.animation.AnimationSpecs
 import com.example.sahtek.ui.theme.SahtekBlue
 import com.example.sahtek.ui.theme.SahtekBlueLight
 import com.example.sahtek.ui.theme.SahtekShadow
 import com.example.sahtek.ui.theme.SahtekSurface
+import com.example.sahtek.ui.theme.SahtekTextPrimary
+import com.example.sahtek.ui.theme.SahtekTextSecondary
 
 private val AuthCardShape = RoundedCornerShape(28.dp)
 private val FieldShape = RoundedCornerShape(20.dp)
@@ -64,34 +79,54 @@ fun SahtekScreenBackground(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
+        // Animated gradient blob 1
         Box(
             modifier = Modifier
-                .size(240.dp)
+                .size(300.dp)
                 .offset(x = 180.dp, y = (-70).dp)
                 .background(
                     brush = Brush.radialGradient(
                         colors = listOf(
-                            SahtekBlue.copy(alpha = 0.16f),
+                            SahtekBlue.copy(alpha = 0.12f),
                             Color.Transparent
                         )
                     ),
                     shape = CircleShape
                 )
         )
+        
+        // Animated gradient blob 2
         Box(
             modifier = Modifier
-                .size(180.dp)
+                .size(200.dp)
                 .offset(x = (-40).dp, y = 420.dp)
                 .background(
                     brush = Brush.radialGradient(
                         colors = listOf(
-                            SahtekBlueLight.copy(alpha = 0.9f),
+                            SahtekBlueLight.copy(alpha = 0.8f),
                             Color.Transparent
                         )
                     ),
                     shape = CircleShape
                 )
         )
+        
+        // Additional premium accent
+        Box(
+            modifier = Modifier
+                .size(150.dp)
+                .offset(x = (-80).dp, y = 150.dp)
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            SahtekBlue.copy(alpha = 0.1f),
+                            Color.Transparent
+                        )
+                    ),
+                    shape = CircleShape
+                )
+        )
+        
         content()
     }
 }
@@ -104,8 +139,29 @@ fun SahtekBrandHeader(
     modifier: Modifier = Modifier,
     eyebrow: String? = null
 ) {
+    var isVisible by remember { mutableStateOf(false) }
+    val alpha by animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = tween(durationMillis = 600),
+        label = "Header Fade"
+    )
+    val translateY by animateFloatAsState(
+        targetValue = if (isVisible) 0f else 20f,
+        animationSpec = tween(durationMillis = 600),
+        label = "Header Slide"
+    )
+    
+    LaunchedEffect(Unit) {
+        isVisible = true
+    }
+    
     Column(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .graphicsLayer(
+                alpha = alpha,
+                translationY = translateY
+            ),
         horizontalAlignment = Alignment.Start
     ) {
         Image(
@@ -121,13 +177,19 @@ fun SahtekBrandHeader(
             Spacer(modifier = Modifier.height(20.dp))
             Surface(
                 color = MaterialTheme.colorScheme.secondary,
-                shape = RoundedCornerShape(999.dp)
+                shape = RoundedCornerShape(999.dp),
+                modifier = Modifier.shadow(
+                    elevation = 4.dp,
+                    shape = RoundedCornerShape(999.dp),
+                    ambientColor = SahtekShadow
+                )
             ) {
                 Text(
                     text = eyebrow,
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
         }
@@ -137,7 +199,8 @@ fun SahtekBrandHeader(
         Text(
             text = title,
             style = MaterialTheme.typography.headlineLarge,
-            color = MaterialTheme.colorScheme.onBackground
+            color = MaterialTheme.colorScheme.onBackground,
+            fontWeight = FontWeight.SemiBold
         )
 
         Spacer(modifier = Modifier.height(10.dp))
@@ -145,7 +208,8 @@ fun SahtekBrandHeader(
         Text(
             text = subtitle,
             style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            lineHeight = 24.sp
         )
     }
 }
@@ -155,18 +219,39 @@ fun SahtekPanel(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    var isVisible by remember { mutableStateOf(false) }
+    val alpha by animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = tween(durationMillis = 500),
+        label = "Panel Fade"
+    )
+    val scale by animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0.95f,
+        animationSpec = spring(dampingRatio = 0.75f),
+        label = "Panel Scale"
+    )
+    
+    LaunchedEffect(Unit) {
+        isVisible = true
+    }
+    
     Surface(
         modifier = modifier
             .fillMaxWidth()
+            .graphicsLayer(
+                alpha = alpha,
+                scaleX = scale,
+                scaleY = scale
+            )
             .shadow(
-                elevation = 20.dp,
+                elevation = 16.dp,
                 shape = AuthCardShape,
                 ambientColor = SahtekShadow,
                 spotColor = SahtekShadow
             ),
         shape = AuthCardShape,
         color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.55f))
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 22.dp),
@@ -309,23 +394,50 @@ fun SahtekPrimaryButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true
 ) {
+    var isPressed by remember { mutableStateOf(false) }
+    
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.96f else 1f,
+        animationSpec = spring(dampingRatio = 0.8f),
+        label = "Button Press"
+    )
+    
+    val elevation by animateFloatAsState(
+        targetValue = if (isPressed) 4.dp.value else 12.dp.value,
+        animationSpec = spring(),
+        label = "Button Elevation"
+    )
+    
     Button(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier
             .fillMaxWidth()
-            .height(56.dp),
+            .height(56.dp)
+            .graphicsLayer(
+                scaleX = scale,
+                scaleY = scale
+            )
+            .shadow(
+                elevation = elevation.dp,
+                shape = ButtonShape,
+                ambientColor = SahtekShadow
+            ),
         shape = ButtonShape,
         colors = ButtonDefaults.buttonColors(
             containerColor = MaterialTheme.colorScheme.primary,
             contentColor = MaterialTheme.colorScheme.onPrimary,
-            disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
+            disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
             disabledContentColor = MaterialTheme.colorScheme.onPrimary
         )
     ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
+            style = MaterialTheme.typography.labelLarge.copy(
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 16.sp,
+                letterSpacing = 0.5.sp
+            )
         )
     }
 }
@@ -338,13 +450,41 @@ fun SahtekGoogleButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true
 ) {
+    var isPressed by remember { mutableStateOf(false) }
+    
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.97f else 1f,
+        animationSpec = spring(dampingRatio = 0.8f),
+        label = "Google Button Press"
+    )
+    
+    val borderColor by animateColorAsState(
+        targetValue = if (isPressed) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+        else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+        animationSpec = tween(durationMillis = 200),
+        label = "Google Border Color"
+    )
+    
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(enabled = enabled, onClick = onClick),
+            .graphicsLayer(
+                scaleX = scale,
+                scaleY = scale
+            )
+            .clickable(
+                enabled = enabled,
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            )
+            .shadow(
+                elevation = if (isPressed) 2.dp else 0.dp,
+                shape = ButtonShape
+            ),
         shape = ButtonShape,
         color = SahtekSurface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.7f))
+        border = BorderStroke(1.5.dp, borderColor)
     ) {
         Row(
             modifier = Modifier
@@ -362,7 +502,10 @@ fun SahtekGoogleButton(
             Text(
                 text = text,
                 modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelLarge.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp
+                ),
                 color = if (enabled) {
                     MaterialTheme.colorScheme.onSurface
                 } else {
@@ -428,19 +571,38 @@ fun SahtekRoleCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var isPressed by remember { mutableStateOf(false) }
+    
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.96f else 1f,
+        animationSpec = spring(dampingRatio = 0.8f),
+        label = "Role Card Press"
+    )
+    
+    val backgroundColor by animateColorAsState(
+        targetValue = if (isPressed) MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
+        else MaterialTheme.colorScheme.surface,
+        animationSpec = tween(durationMillis = 200),
+        label = "Role Card Background"
+    )
+    
     Surface(
         modifier = modifier
             .fillMaxWidth()
+            .graphicsLayer(
+                scaleX = scale,
+                scaleY = scale
+            )
             .shadow(
-                elevation = 18.dp,
+                elevation = if (isPressed) 8.dp else 18.dp,
                 shape = RoundedCornerShape(24.dp),
                 ambientColor = SahtekShadow,
                 spotColor = SahtekShadow
             )
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.45f))
+        color = backgroundColor,
+        border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 18.dp, vertical = 18.dp),
@@ -448,7 +610,11 @@ fun SahtekRoleCard(
         ) {
             Surface(
                 color = MaterialTheme.colorScheme.secondary,
-                shape = RoundedCornerShape(18.dp)
+                shape = RoundedCornerShape(18.dp),
+                modifier = Modifier.shadow(
+                    elevation = 4.dp,
+                    shape = RoundedCornerShape(18.dp)
+                )
             ) {
                 Image(
                     painter = painterResource(id = imageRes),
@@ -462,7 +628,9 @@ fun SahtekRoleCard(
             }
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontWeight = FontWeight.SemiBold
+                ),
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(

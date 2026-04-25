@@ -84,7 +84,9 @@ fun PatientHomeScreen(
     onNavigateToAddAnalysis: () -> Unit = {},
     onNavigateToDetails: (String) -> Unit = {},
     onAppointmentsClick: () -> Unit = {},
-    onDoctorClick: (String) -> Unit = {}
+    onDoctorClick: (String) -> Unit = {},
+    onConsultationsClick: (String) -> Unit = {},
+    onTokenExpired: (() -> Unit)? = null
 ) {
     var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
     val context = LocalContext.current.applicationContext
@@ -95,7 +97,7 @@ fun PatientHomeScreen(
             sessionManager = SessionManager(context)
         )
     }
-    val factory = remember(repository) { PatientHomeViewModelFactory(repository) }
+    val factory = remember(repository, onTokenExpired) { PatientHomeViewModelFactory(repository, onTokenExpired) }
     val homeViewModel: PatientHomeViewModel = viewModel(factory = factory)
     val uiState by homeViewModel.uiState.collectAsState()
     val resolvedPatientName = uiState.patientname.ifBlank { patientName }
@@ -160,7 +162,13 @@ fun PatientHomeScreen(
 
             else -> PatientConsultationPage(
                 innerPadding = innerPadding,
-                onSearchDoctorsClick = onSearchDoctorsClick
+                onSearchDoctorsClick = onSearchDoctorsClick,
+                onMyConsultationsClick = {
+                    val userId = uiState.id
+                    if (userId.isNotBlank()) {
+                        onConsultationsClick(userId)
+                    }
+                }
             )
         }
     }

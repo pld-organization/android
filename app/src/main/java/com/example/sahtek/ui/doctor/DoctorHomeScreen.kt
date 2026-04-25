@@ -1,5 +1,6 @@
 package com.example.sahtek.ui.doctor
 
+import android.util.Log
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -83,7 +84,9 @@ fun DoctorHomeScreen(
     onSearchClick: () -> Unit = {},
     onFilterClick: () -> Unit = {},
     onLoadMoreClick: () -> Unit = {},
-    onSetAvailabilityClick: () -> Unit = {}
+    onSetAvailabilityClick: () -> Unit = {},
+    onConsultationsClick: (String) -> Unit = {},
+    onTokenExpired: (() -> Unit)? = null
 ) {
     var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
     val context = LocalContext.current.applicationContext
@@ -95,7 +98,7 @@ fun DoctorHomeScreen(
             sessionManager = sessionManager
         )
     }
-    val factory = remember(repository) { PatientHomeViewModelFactory(repository) }
+    val factory = remember(repository, onTokenExpired) { PatientHomeViewModelFactory(repository, onTokenExpired) }
     val homeViewModel: PatientHomeViewModel = viewModel(factory = factory)
     val uiState by homeViewModel.uiState.collectAsState()
     val resolvedDoctorName = uiState.patientname.ifBlank { doctorName }
@@ -106,13 +109,20 @@ fun DoctorHomeScreen(
     LaunchedEffect(uiState.id) {
         if (uiState.id.isNotBlank()) {
             val token = sessionManager.getAuthToken() ?: ""
-            try {
-                val response = RetrofitClient.reservationApiService.getDoctorReservations("Bearer $token", uiState.id)
-                if (response.isSuccessful) {
-                    appointments.clear()
-                    appointments.addAll(response.body() ?: emptyList())
+            if (token.isNotEmpty()) {
+                try {
+                    val response = RetrofitClient.reservationApiService.getDoctorReservations("Bearer $token", uiState.id)
+                    if (response.isSuccessful) {
+                        appointments.clear()
+                        appointments.addAll(response.body() ?: emptyList())
+                    } else if (response.code() == 401) {
+                        // Token expired, trigger callback
+                        onTokenExpired?.invoke()
+                    }
+                } catch (e: Exception) {
+                    Log.e("DoctorHomeScreen", "Failed to fetch doctor reservations", e)
                 }
-            } catch (e: Exception) { }
+            }
         }
     }
 
@@ -166,7 +176,15 @@ fun DoctorHomeScreen(
                 innerPadding = innerPadding,
                 onSetAvailabilityClick = onSetAvailabilityClick
             )
-            else -> DoctorConsultationPage(innerPadding = innerPadding)
+            else -> DoctorConsultationPage(
+                innerPadding = innerPadding,
+                onMyConsultationsClick = {
+                    val userId = uiState.id
+                    if (userId.isNotBlank()) {
+                        onConsultationsClick(userId)
+                    }
+                }
+            )
         }
     }
 }

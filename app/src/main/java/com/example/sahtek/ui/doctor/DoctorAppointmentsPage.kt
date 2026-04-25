@@ -84,7 +84,7 @@ internal fun DoctorAppointmentsPage(
     val stats = listOf(
         DoctorStatCardModel("Total\nAppointments", appointments.size.toString(), Icons.Filled.CalendarMonth, SahtekBlue),
         DoctorStatCardModel("Upcoming", appointments.count { it.reservationStatus == "PENDING" }.toString(), Icons.Filled.AccessTime, Color(0xFF7C5CFF)),
-        DoctorStatCardModel("Completed", appointments.count { it.reservationStatus == "COMPLETED" }.toString(), Icons.Filled.CheckCircle, Color(0xFF20B26B)),
+        DoctorStatCardModel("Completed", appointments.count { it.reservationStatus == "COMPLETED" || it.reservationStatus == "CONFIRMED" }.toString(), Icons.Filled.CheckCircle, Color(0xFF20B26B)),
         DoctorStatCardModel("Cancelled", appointments.count { it.reservationStatus == "CANCELLED" }.toString(), Icons.Filled.Cancel, Color(0xFFFF6464))
     )
 
@@ -334,18 +334,18 @@ private fun DoctorAppointmentListCard(appointment: ReservationResponseDto) {
                         modifier = Modifier.size(16.dp)
                     )
                     Text(
-                        text = appointment.reservationTime,
+                        text = appointment.reservationTime ?: "--:--",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
                 Text(
-                    text = "Reason: ${appointment.reason}",
+                    text = "Reason: ${appointment.reason ?: "No reason"}",
                     style = MaterialTheme.typography.bodySmall,
                     color = SahtekTextSecondary
                 )
                 Text(
-                    text = "Date: ${appointment.reservationDay}",
+                    text = "Date: ${appointment.reservationDay ?: "N/A"}",
                     style = MaterialTheme.typography.bodySmall,
                     color = SahtekTextSecondary
                 )
@@ -354,7 +354,7 @@ private fun DoctorAppointmentListCard(appointment: ReservationResponseDto) {
             Surface(
                 shape = RoundedCornerShape(10.dp),
                 color = when (appointment.reservationStatus) {
-                    "COMPLETED" -> Color(0xFF20B26B)
+                    "COMPLETED", "CONFIRMED" -> Color(0xFF20B26B)
                     "CANCELLED" -> Color(0xFFFF6464)
                     else -> SahtekBlue
                 }

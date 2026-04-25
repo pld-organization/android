@@ -74,8 +74,9 @@ internal fun DoctorPatientsPage(
     val sessionManager = remember { SessionManager(context) }
     val viewModel: DoctorPationViewModel = viewModel(
         factory = DoctorPationViewModelFactory(
-            RetrofitClient.reservationApiService,
-            sessionManager
+            reservationApiService = RetrofitClient.reservationApiService,
+            patientApiService = RetrofitClient.patientApiService,
+            sessionManager = sessionManager
         )
     )
     val uiState by viewModel.uiState.collectAsState()

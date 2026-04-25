@@ -18,7 +18,7 @@ data class DoctorDto(
     val fullName: String
         get() {
             val explicitName = displayName?.trim().orEmpty()
-            val resolvedName = listOf(firstName, lastName)
+            val resolvedName = listOf(firstName, lastName,speciality)
                 .filter { !it.isNullOrBlank() }
                 .joinToString(" ")
 

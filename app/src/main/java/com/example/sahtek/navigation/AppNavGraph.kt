@@ -1,6 +1,7 @@
 package com.example.sahtek.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,6 +37,12 @@ import com.example.sahtek.ui.analysis.PatientAnalysisHomeScreen
 import com.example.sahtek.ui.analysis.AddPatientAnalysisScreen
 import com.example.sahtek.ui.analysis.PatientAnalysisDetailsScreen
 import com.example.sahtek.ui.animationpage.SplashAnimationPage
+import com.example.sahtek.ui.notification.NotificationScreen
+import com.example.sahtek.data.notification.repository.NotificationRepositoryImpl
+import com.example.sahtek.ui.consultation.ConsultationScreen
+import com.example.sahtek.ui.consultation.ConsultationViewModel
+import com.example.sahtek.ui.consultation.ConsultationViewModelFactory
+import com.example.sahtek.reservation.repository.RealReservationRepository
 
 @Composable
 fun AppNavGraph() {
@@ -151,7 +158,7 @@ fun AppNavGraph() {
             PatientHomeScreen(
                 analysisViewModel = analysisViewModel,
                 onNotificationsClick = {
-                    // connect later when Notifications page exists
+                    navController.navigate(Screen.Notifications.route)
                 },
                 onProfileClick = {
                     navController.navigate(Screen.PatientProfile.route)
@@ -171,6 +178,17 @@ fun AppNavGraph() {
                 },
                 onDoctorClick = { doctorId ->
                     navController.navigate(Screen.AvailableSchedules.createRoute(doctorId))
+                },
+                onConsultationsClick = { userId ->
+                    navController.navigate(Screen.Consultation.createRoute(userId, "PATIENT"))
+                },
+                onTokenExpired = {
+                    // Clear session and redirect to login
+                    sessionManager.clearSession()
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(Screen.Homepatient.route) { inclusive = true }
+                        launchSingleTop = true
+                    }
                 }
             )
         }
@@ -178,7 +196,7 @@ fun AppNavGraph() {
         composable(Screen.Homedoctor.route) {
             DoctorHomeScreen(
                 onNotificationsClick = {
-                    // connect later when Doctor notifications page exists
+                    navController.navigate(Screen.Notifications.route)
                 },
                 onProfileClick = {
                     navController.navigate(Screen.DoctorProfile.route)
@@ -194,6 +212,17 @@ fun AppNavGraph() {
                 },
                 onSetAvailabilityClick = {
                     navController.navigate(Screen.DoctorSetAvailability.route)
+                },
+                onConsultationsClick = { userId ->
+                    navController.navigate(Screen.Consultation.createRoute(userId, "DOCTOR"))
+                },
+                onTokenExpired = {
+                    // Clear session and redirect to login
+                    sessionManager.clearSession()
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(Screen.Homedoctor.route) { inclusive = true }
+                        launchSingleTop = true
+                    }
                 }
             )
         }
@@ -270,7 +299,7 @@ fun AppNavGraph() {
                     navController.popBackStack()
                 },
                 onNotificationsClick = {
-                    // connect later when Notifications page exists
+                    navController.navigate(Screen.Notifications.route)
                 },
                 onProfileClick = {
                     navController.navigate(Screen.PatientProfile.route)
@@ -317,6 +346,51 @@ fun AppNavGraph() {
                 resultId = resultId,
                 viewModel = analysisViewModel,
                 onBack = { navController.popBackStack() }
+            )
+        }
+
+        // --- Notification Feature ---
+        composable(Screen.Notifications.route) {
+            NotificationScreen(
+                onBackClick = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        // --- Consultation Feature ---
+        composable(
+            route = Screen.Consultation.route,
+            arguments = listOf(
+                navArgument("userId") { type = NavType.StringType },
+                navArgument("role") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId") ?: ""
+            val role = backStackEntry.arguments?.getString("role") ?: "PATIENT"
+
+            val consultationRepository = remember {
+                RealReservationRepository(RetrofitClient.reservationApiService)
+            }
+            val consultationViewModel: ConsultationViewModel = viewModel(
+                factory = ConsultationViewModelFactory(consultationRepository)
+            )
+
+            val context = androidx.compose.ui.platform.LocalContext.current
+            // Load meetings based on role
+            LaunchedEffect(userId, role) {
+                if (role.equals("DOCTOR", ignoreCase = true)) {
+                    consultationViewModel.loadDoctorMeetings(context, userId)
+                } else {
+                    consultationViewModel.loadPatientMeetings(context, userId)
+                }
+            }
+
+            ConsultationScreen(
+                viewModel = consultationViewModel,
+                onBackClick = {
+                    navController.popBackStack()
+                }
             )
         }
 

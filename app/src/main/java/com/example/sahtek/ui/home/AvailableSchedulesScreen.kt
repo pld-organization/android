@@ -66,6 +66,8 @@ import com.example.sahtek.reservation.repository.RealReservationRepository
 import com.example.sahtek.ui.home.repository.RealPatientRepository
 import com.example.sahtek.ui.home.viewmodel.PatientHomeViewModel
 import com.example.sahtek.ui.home.viewmodel.PatientHomeViewModelFactory
+import com.example.sahtek.data.notification.repository.NotificationRepositoryImpl
+import com.example.sahtek.data.notification.repository.NotificationRepository
 import com.example.sahtek.ui.theme.SahtekBlue
 import com.example.sahtek.ui.theme.SahtekBlueDark
 import com.example.sahtek.ui.theme.SahtekBlueLight
@@ -95,7 +97,15 @@ internal fun AvailableSchedulesScreen(
 
     // Reservation ViewModel
     val reservationRepository = remember { RealReservationRepository(RetrofitClient.reservationApiService) }
-    val reservationFactory = remember(reservationRepository) { ReservationViewModelFactory(reservationRepository, sessionManager) }
+    val notificationRepository = remember(context) {
+        NotificationRepositoryImpl(
+            apiService = RetrofitClient.notificationApiService,
+            sessionManager = sessionManager
+        )
+    }
+    val reservationFactory = remember(reservationRepository, notificationRepository) { 
+        ReservationViewModelFactory(reservationRepository, sessionManager, notificationRepository) 
+    }
     val reservationViewModel: ReservationViewModel = viewModel(factory = reservationFactory)
     val reservationUiState by reservationViewModel.uiState.collectAsState()
 
@@ -191,16 +201,13 @@ internal fun AvailableSchedulesScreen(
             schedule = schedule,
             onDismiss = { selectedSchedule = null },
             onConfirm = { _, _, description ->
-                val targetDoctorId = if (doctorId != "all") doctorId else "79ca2c53-efc4-459a-93f6-2cb2675bc169"
+                val targetDoctorId = if (doctorId != "all" && doctorId.isNotBlank()) doctorId else schedule.id // In case of 'all', use the slot's doctorId
 
-                val day = "MONDAY"
-                val time = "09:00"
-                
                 reservationViewModel.createReservation(
                     doctorId = targetDoctorId,
                     patientId = patientUiState.id,
-                    reservationDay = day,
-                    reservationTime = time,
+                    reservationDay = schedule.rawDay,
+                    reservationTime = schedule.rawStartTime,
                     reason = description
                 )
                 selectedSchedule = null

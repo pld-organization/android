@@ -2,6 +2,7 @@ package com.example.sahtek.ui.home.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.sahtek.exception.TokenExpiredException
 import com.example.sahtek.ui.home.repository.PatientRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,7 +34,9 @@ data class AppointmentUi(
     val doctorSpeciality: String,
     val date: String,
     val time: String,
-    val status: String = "PENDING"
+    val status: String = "PENDING",
+    val doctorId: String = "",
+    val patientId: String = ""
 )
 
 data class AiResultUi(
@@ -49,7 +52,8 @@ data class HomeQuickStats(
 )
 
 class PatientHomeViewModel(
-    private val repository: PatientRepository
+    private val repository: PatientRepository,
+    private val onTokenExpired: (() -> Unit)? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PationHome(isLoading = true))
@@ -68,6 +72,9 @@ class PatientHomeViewModel(
 
             try {
                 _uiState.value = repository.getPatientHome()
+            } catch (e: TokenExpiredException) {
+                // Token expired, trigger callback to redirect to login
+                onTokenExpired?.invoke()
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,

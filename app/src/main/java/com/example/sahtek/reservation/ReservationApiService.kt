@@ -44,9 +44,35 @@ interface ReservationApiService {
         @Path("reservationId") reservationId: String
     ): Response<CancelReservationResponseDto>
 
-
     @GET("auth/doctors/ids")
     suspend fun getDoctorIds(
         @Header("Authorization") token: String
     ): Response<List<String>>
+
+    // --- Meeting / Consultation Endpoints ---
+
+    @GET("reservation/meetings/doctor/{doctorId}")
+    suspend fun getDoctorMeetings(
+        @Path("doctorId") doctorId: String
+    ): Response<List<MeetingDto>>
+
+    @GET("reservation/meetings/patient/{patientId}")
+    suspend fun getPatientMeetings(
+        @Path("patientId") patientId: String
+    ): Response<List<MeetingDto>>
+
+    @GET("reservation/upcoming/doctor/{doctorId}")
+    suspend fun getUpcomingDoctorReservations(
+        @Path("doctorId") doctorId: String
+    ): Response<List<ReservationDetailDto>>
+
+    @GET("reservation/upcoming/patient/{patientId}")
+    suspend fun getUpcomingPatientReservations(
+        @Path("patientId") patientId: String
+    ): Response<List<ReservationDetailDto>>
+
+    @GET("reservation/{reservationId}")
+    suspend fun getReservationById(
+        @Path("reservationId") reservationId: String
+    ): Response<ReservationDetailDto>
 }

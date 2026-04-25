@@ -100,6 +100,6 @@ class DoctorAvailabilityViewModel(
 
     private companion object {
         val TIME_REGEX = Regex("^([01]\\d|2[0-3]):[0-5]\\d(:[0-5]\\d)?$")
-        val ALLOWED_APPOINTMENT_TYPES = setOf("CONSULTATION", "ONLINE")
+        val ALLOWED_APPOINTMENT_TYPES = setOf("ATTENDANCE", "ONLINE")
     }
 }

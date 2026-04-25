@@ -1,5 +1,6 @@
 package com.example.sahtek.ui.home
 
+import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -9,16 +10,30 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.authservice.SessionManager
+import com.example.sahtek.network.RetrofitClient
 import com.example.sahtek.ui.home.viewmodel.AppointmentUi
+import kotlinx.coroutines.launch
 
 @Composable
 internal fun PatientSchedulePage(
     innerPadding: PaddingValues,
     appointments: List<AppointmentUi>
 ) {
+    var appointmentsState by remember { mutableStateOf(appointments) }
+    val context = LocalContext.current.applicationContext
+    val sessionManager = remember { SessionManager(context) }
+    val scope = rememberCoroutineScope()
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -33,7 +48,7 @@ internal fun PatientSchedulePage(
             )
         }
 
-        if (appointments.isEmpty()) {
+        if (appointmentsState.isEmpty()) {
             item {
                 DashboardStatusCard(
                     title = "No upcoming appointments",
@@ -41,11 +56,21 @@ internal fun PatientSchedulePage(
                 )
             }
         } else {
-            items(appointments) { appointment ->
-                TimelineCard(
+            items(appointmentsState, key = { it.id }) { appointment ->
+                AppointmentTimelineCard(
                     time = appointment.time,
-                    title = "Appointment: ${appointment.doctortName}",
-                    description = "Specialty: ${appointment.doctorSpeciality}\nDate: ${appointment.date}\nStatus: ${appointment.status}"
+                    doctorName = appointment.doctortName,
+                    specialty = appointment.doctorSpeciality,
+                    date = appointment.date,
+                    appointmentId = appointment.id,
+                    status = appointment.status,
+                    doctorId = appointment.doctorId,
+                    patientId = appointment.patientId,
+                    sessionManager = sessionManager,
+                    onCancelSuccess = {
+                        // Remove cancelled appointment from list
+                        appointmentsState = appointmentsState.filter { it.id != appointment.id }
+                    }
                 )
             }
         }
